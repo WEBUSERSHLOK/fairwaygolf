@@ -1,0 +1,2652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Fairway Classic - 18-Hole Championship Golf</title>
+  <!-- Tailwind CSS CDN for modern UI components -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    * {
+      user-select: none;
+      -webkit-user-select: none;
+      box-sizing: border-box;
+    }
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #0b1d13;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    }
+    #gameCanvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      cursor: crosshair;
+    }
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 15px rgba(52, 211, 153, 0.4); }
+      50% { box-shadow: 0 0 25px rgba(52, 211, 153, 0.8); }
+    }
+    .glow-active {
+      animation: pulseGlow 1.5s infinite;
+    }
+    .custom-scroll::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scroll::-webkit-scrollbar-track {
+      background: rgba(0,0,0,0.2);
+      border-radius: 4px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: rgba(255,255,255,0.25);
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body class="relative text-white select-none">
+
+  <!-- Main Game Canvas -->
+  <canvas id="gameCanvas"></canvas>
+
+  <!-- Top Navigation HUD Bar -->
+  <header class="absolute top-0 left-0 right-0 p-3 sm:p-4 flex justify-between items-start pointer-events-none z-20">
+    <!-- Hole, Par, Distance, Shot Counter & Player Badge -->
+    <div class="pointer-events-auto bg-emerald-950/85 backdrop-blur-md border border-emerald-500/40 rounded-2xl p-3 sm:px-5 sm:py-3 shadow-2xl flex items-center gap-3 sm:gap-4 text-sm sm:text-base">
+      <!-- Player Turn Indicator (Visible in 2P mode) -->
+      <div id="uiPlayerIndicator" class="border-r border-emerald-700/60 pr-3 sm:pr-4 text-center hidden">
+        <span class="text-[10px] sm:text-xs uppercase tracking-wider text-emerald-300/80 font-bold block">Turn</span>
+        <span id="uiCurrentPlayerBadge" class="text-xs sm:text-sm font-black px-2.5 py-0.5 rounded-lg bg-sky-600 text-white inline-block shadow">P1</span>
+      </div>
+      <div class="border-r border-emerald-700/60 pr-3 sm:pr-4 text-center">
+        <span class="text-[10px] sm:text-xs uppercase tracking-wider text-emerald-300/80 font-bold block">Hole</span>
+        <span id="uiHoleNum" class="text-2xl sm:text-3xl font-black text-white">1</span>
+      </div>
+      <div class="border-r border-emerald-700/60 pr-3 sm:pr-4 text-center">
+        <span class="text-[10px] sm:text-xs uppercase tracking-wider text-emerald-300/80 font-bold block">Par</span>
+        <span id="uiHolePar" class="text-xl sm:text-2xl font-bold text-amber-400">4</span>
+      </div>
+      <div class="border-r border-emerald-700/60 pr-3 sm:pr-4 text-center">
+        <span class="text-[10px] sm:text-xs uppercase tracking-wider text-emerald-300/80 font-bold block">To Pin</span>
+        <span id="uiPinDist" class="text-xl sm:text-2xl font-black text-emerald-200">385 <span class="text-xs font-normal">yds</span></span>
+      </div>
+      <div class="text-center">
+        <span class="text-[10px] sm:text-xs uppercase tracking-wider text-emerald-300/80 font-bold block">Shot</span>
+        <span id="uiShotNum" class="text-xl sm:text-2xl font-bold text-white">1</span>
+      </div>
+    </div>
+
+    <!-- Right HUD: Lie, Wind, Score to Par & Action Buttons -->
+    <div class="pointer-events-auto flex flex-col items-end gap-2">
+      <div class="bg-emerald-950/85 backdrop-blur-md border border-emerald-500/40 rounded-2xl px-4 py-2 shadow-2xl flex items-center gap-3 sm:gap-4 text-xs sm:text-sm">
+        <div class="flex items-center gap-1.5">
+          <span class="text-emerald-400/80 font-medium">Lie:</span>
+          <span id="uiLieText" class="font-bold text-white bg-emerald-800/80 px-2 py-0.5 rounded-md">Tee</span>
+        </div>
+        <div class="flex items-center gap-2 border-l border-emerald-700/60 pl-3">
+          <span class="text-emerald-400/80 font-medium">Wind:</span>
+          <div class="flex items-center gap-1">
+            <svg id="uiWindArrow" class="w-4 h-4 text-cyan-400 transform transition-transform duration-500" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/>
+            </svg>
+            <span id="uiWindSpeed" class="font-bold text-cyan-300">8 mph</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-1.5 border-l border-emerald-700/60 pl-3">
+          <span class="text-emerald-400/80 font-medium">Score:</span>
+          <span id="uiTotalScore" class="font-black text-amber-400">E</span>
+        </div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="flex gap-2">
+        <button id="btnToggleCam" title="Change Camera View (C)" class="bg-emerald-900/85 hover:bg-emerald-800 backdrop-blur-md border border-emerald-600/40 rounded-xl px-3 py-1.5 text-xs font-semibold shadow-lg transition flex items-center gap-1 text-emerald-200">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+          <span class="hidden sm:inline">Follow Cam</span>
+        </button>
+        <button id="btnCourseMap" title="View Full Course Layout (M)" class="bg-emerald-900/85 hover:bg-emerald-800 backdrop-blur-md border border-emerald-600/40 rounded-xl px-3 py-1.5 text-xs font-semibold shadow-lg transition flex items-center gap-1 text-emerald-200">
+          <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
+          <span>Map [M]</span>
+        </button>
+        <button id="btnScorecard" title="View Scorecard (Tab)" class="bg-emerald-900/85 hover:bg-emerald-800 backdrop-blur-md border border-emerald-600/40 rounded-xl px-3 py-1.5 text-xs font-semibold shadow-lg transition flex items-center gap-1 text-emerald-200">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+          <span>Card</span>
+        </button>
+        <button id="btnMute" title="Toggle Sound" class="bg-emerald-900/85 hover:bg-emerald-800 backdrop-blur-md border border-emerald-600/40 rounded-xl px-2.5 py-1.5 text-xs font-semibold shadow-lg transition text-emerald-200">
+          <span id="muteIcon">🔊</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Shot Toast / Contact Announcement Banner -->
+  <div id="shotBanner" class="absolute top-24 left-1/2 transform -translate-x-1/2 pointer-events-none transition-all duration-300 opacity-0 -translate-y-4 z-30">
+    <div id="shotBannerContent" class="bg-black/90 backdrop-blur-md border-2 border-amber-400 text-amber-300 font-black px-6 py-2 rounded-full shadow-2xl text-center text-sm sm:text-base tracking-wide flex items-center gap-2">
+      <span>PERFECT CONTACT!</span>
+    </div>
+  </div>
+
+  <!-- Bottom Swing Console & Controls HUD -->
+  <footer class="absolute bottom-0 left-0 right-0 p-3 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-4 pointer-events-none z-20">
+    <!-- Club Selection Wheel / Card -->
+    <div class="pointer-events-auto bg-emerald-950/85 backdrop-blur-md border border-emerald-500/40 rounded-2xl p-3 shadow-2xl flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
+      <button id="btnClubPrev" class="w-9 h-9 rounded-xl bg-emerald-800/60 hover:bg-emerald-700 active:scale-95 transition flex items-center justify-center text-emerald-200 text-lg font-bold border border-emerald-600/30">◀</button>
+      <div class="text-center min-w-[130px] sm:min-w-[150px]">
+        <div id="uiClubName" class="text-lg sm:text-xl font-black text-white tracking-wide">Driver</div>
+        <div class="flex items-center justify-center gap-1.5 text-xs text-emerald-300/90 font-medium">
+          <span>Carry:</span>
+          <span id="uiClubDist" class="font-bold text-amber-300">260 yds</span>
+          <span class="text-emerald-500">|</span>
+          <span id="uiClubLoft" class="text-emerald-400">12°</span>
+        </div>
+      </div>
+      <button id="btnClubNext" class="w-9 h-9 rounded-xl bg-emerald-800/60 hover:bg-emerald-700 active:scale-95 transition flex items-center justify-center text-emerald-200 text-lg font-bold border border-emerald-600/30">▶</button>
+    </div>
+
+    <!-- Central Swing / Putting Gauge Console -->
+    <div class="pointer-events-auto flex flex-col items-center gap-2 w-full max-w-md">
+      <div class="flex items-center justify-between w-full px-2 text-xs text-emerald-300/80 font-semibold">
+        <div class="flex items-center gap-1">
+          <button id="btnAimLeft" class="bg-emerald-900/70 hover:bg-emerald-800 border border-emerald-600/30 px-3 py-1 rounded-lg text-emerald-200 active:scale-95 transition">⟲ Aim Left [A]</button>
+          <button id="btnAimRight" class="bg-emerald-900/70 hover:bg-emerald-800 border border-emerald-600/30 px-3 py-1 rounded-lg text-emerald-200 active:scale-95 transition">Aim Right [D] ⟳</button>
+        </div>
+        <span id="uiAimAngle" class="text-white font-mono text-xs">0°</span>
+      </div>
+
+      <!-- Interactive 3-Click Dynamic Swing Meter Canvas -->
+      <div id="swingMeterBox" class="relative w-full h-14 bg-emerald-950/90 border-2 border-emerald-400/50 rounded-2xl shadow-2xl overflow-hidden p-1 cursor-pointer flex items-center justify-center hover:border-emerald-400 transition glow-active">
+        <canvas id="meterCanvas" class="w-full h-full rounded-xl"></canvas>
+        <div id="swingPrompt" class="absolute inset-0 flex items-center justify-center pointer-events-none text-white text-xs sm:text-sm font-extrabold uppercase tracking-wider drop-shadow-md">
+          Click or Press Space to Swing
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Controls / Mini-guide -->
+    <div class="pointer-events-auto hidden lg:flex flex-col items-end text-xs text-emerald-300/70 bg-emerald-950/70 backdrop-blur-md p-3 rounded-2xl border border-emerald-500/30">
+      <div class="font-bold text-white mb-1">Controls Guide</div>
+      <div><span class="text-emerald-400 font-semibold">Space / Click:</span> 3-Click Swing</div>
+      <div><span class="text-emerald-400 font-semibold">A / D or Drag:</span> Aim Direction</div>
+      <div><span class="text-emerald-400 font-semibold">W / S or 1-9:</span> Cycle Clubs</div>
+      <div><span class="text-emerald-400 font-semibold">M:</span> Full Course Layout | <span class="text-emerald-400 font-semibold">Tab:</span> Scorecard</div>
+    </div>
+  </footer>
+
+  <!-- Full Course Layout Overview Modal -->
+  <div id="courseMapModal" class="absolute inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center z-50 hidden p-3 sm:p-6">
+    <div class="bg-gradient-to-b from-emerald-950 via-emerald-900 to-black border border-emerald-500/40 rounded-3xl max-w-5xl w-full p-4 sm:p-6 shadow-2xl flex flex-col max-h-[95vh]">
+      <div class="flex justify-between items-center mb-3 border-b border-emerald-700/50 pb-2.5">
+        <div class="flex items-center gap-3">
+          <span class="text-2xl">🗺️</span>
+          <div>
+            <h2 class="text-xl sm:text-2xl font-black text-white">Championship Resort Layout</h2>
+            <p class="text-xs text-emerald-300/80">Complete 18-Hole Master Aerial Map &bull; Active Hole & Ball Highlighted</p>
+          </div>
+        </div>
+        <button id="btnCloseCourseMap" class="text-emerald-300 hover:text-white bg-emerald-800/60 p-2 rounded-xl text-lg font-bold">✕</button>
+      </div>
+      <div class="relative w-full flex-1 min-h-[350px] sm:min-h-[480px] bg-[#0c2214] rounded-2xl overflow-hidden border border-emerald-700/40 shadow-inner flex items-center justify-center">
+        <canvas id="overviewCanvas" class="w-full h-full block cursor-pointer"></canvas>
+        <div class="absolute bottom-3 left-3 bg-black/75 backdrop-blur-md px-3 py-1.5 rounded-xl border border-emerald-500/30 text-xs text-emerald-200 flex items-center gap-3">
+          <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-red-500 inline-block"></span> Active Pin</span>
+          <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-white border border-sky-400 inline-block"></span> Ball Lie</span>
+          <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-sky-600 inline-block"></span> Water Hazard</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hole Complete Modal -->
+  <div id="holeCompleteModal" class="absolute inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 hidden p-4">
+    <div class="bg-gradient-to-b from-emerald-900 to-emerald-950 border-2 border-emerald-400/50 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl text-center">
+      <div id="holeScoreBanner" class="inline-block px-5 py-1.5 rounded-full text-xs font-black uppercase tracking-widest bg-amber-400 text-emerald-950 mb-3">
+        Birdie!
+      </div>
+      <h2 id="holeCompleteTitle" class="text-3xl font-black text-white mb-1">Hole 1 Complete</h2>
+      <p id="holeCompleteSubtitle" class="text-emerald-300/80 text-sm mb-5">4 Strokes (Par 4)</p>
+      
+      <!-- Single Player Stats Container -->
+      <div id="singlePlayerStatsContainer" class="grid grid-cols-3 gap-3 bg-emerald-950/70 p-4 rounded-2xl border border-emerald-600/40 mb-6 text-sm">
+        <div>
+          <span class="text-emerald-400 text-xs block font-bold">Strokes</span>
+          <span id="modalHoleStrokes" class="text-2xl font-black text-white">4</span>
+        </div>
+        <div>
+          <span class="text-emerald-400 text-xs block font-bold">Hole Par</span>
+          <span id="modalHolePar" class="text-2xl font-black text-amber-400">4</span>
+        </div>
+        <div>
+          <span class="text-emerald-400 text-xs block font-bold">Total to Par</span>
+          <span id="modalTotalScore" class="text-2xl font-black text-emerald-200">E</span>
+        </div>
+      </div>
+
+      <!-- 2 Player Comparison Breakdown -->
+      <div id="twoPlayerStatsContainer" class="hidden grid-cols-2 gap-3 bg-emerald-950/70 p-4 rounded-2xl border border-emerald-600/40 mb-6 text-sm">
+        <div class="border-r border-emerald-700/60 pr-2">
+          <span class="text-sky-300 text-xs block font-bold">Player 1</span>
+          <span id="modalP1Strokes" class="text-2xl font-black text-white">4</span>
+          <span id="modalP1ToPar" class="text-xs block text-emerald-300 font-semibold mt-1">E</span>
+        </div>
+        <div class="pl-2">
+          <span class="text-amber-300 text-xs block font-bold">Player 2</span>
+          <span id="modalP2Strokes" class="text-2xl font-black text-white">5</span>
+          <span id="modalP2ToPar" class="text-xs block text-emerald-300 font-semibold mt-1">+1</span>
+        </div>
+      </div>
+
+      <div class="flex gap-3">
+        <button id="btnViewCardFromModal" class="flex-1 py-3 px-4 rounded-xl bg-emerald-800/80 hover:bg-emerald-700 text-white font-bold text-sm transition border border-emerald-600/40">
+          Scorecard
+        </button>
+        <button id="btnNextHole" class="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-400 to-teal-300 hover:from-emerald-300 hover:to-teal-200 text-emerald-950 font-black text-sm tracking-wide shadow-lg transition">
+          Next Hole ▶
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scorecard Modal -->
+  <div id="scorecardModal" class="absolute inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 hidden p-3 sm:p-6">
+    <div class="bg-gradient-to-b from-emerald-900 to-emerald-950 border border-emerald-500/40 rounded-3xl max-w-4xl w-full p-5 sm:p-7 shadow-2xl flex flex-col max-h-[90vh]">
+      <div class="flex justify-between items-center mb-4 border-b border-emerald-700/50 pb-3">
+        <div>
+          <h2 class="text-2xl font-black text-white">Championship Course</h2>
+          <p class="text-xs text-emerald-300/80">Official Scorecard &bull; 18 Holes &bull; Par 72 &bull; Blue: 6,475 yds | White: 6,210 yds</p>
+        </div>
+        <button id="btnCloseScorecard" class="text-emerald-300 hover:text-white bg-emerald-800/60 p-2 rounded-xl text-lg font-bold">✕</button>
+      </div>
+
+      <div class="overflow-x-auto custom-scroll mb-4 flex-1">
+        <table class="w-full text-center text-xs sm:text-sm border-collapse">
+          <thead>
+            <tr class="bg-emerald-950/80 text-emerald-300 font-bold border-b border-emerald-700/60">
+              <th class="p-2 text-left">Hole</th>
+              <th class="p-2">1</th><th class="p-2">2</th><th class="p-2">3</th><th class="p-2">4</th><th class="p-2">5</th><th class="p-2">6</th><th class="p-2">7</th><th class="p-2">8</th><th class="p-2">9</th>
+              <th class="p-2 bg-emerald-900 text-amber-300 font-bold">OUT</th>
+              <th class="p-2">10</th><th class="p-2">11</th><th class="p-2">12</th><th class="p-2">13</th><th class="p-2">14</th><th class="p-2">15</th><th class="p-2">16</th><th class="p-2">17</th><th class="p-2">18</th>
+              <th class="p-2 bg-emerald-900 text-amber-300 font-bold">IN</th>
+              <th class="p-2 bg-emerald-800 text-amber-400 font-black">TOT</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="border-b border-emerald-800/30 text-sky-300 text-[11px]">
+              <td class="p-1.5 font-bold text-left text-sky-400">Blue</td>
+              <td class="p-1.5">365</td><td class="p-1.5">380</td><td class="p-1.5">165</td><td class="p-1.5">375</td><td class="p-1.5">500</td><td class="p-1.5">310</td><td class="p-1.5">170</td><td class="p-1.5">550</td><td class="p-1.5">350</td>
+              <td class="p-1.5 bg-emerald-950 font-bold text-sky-300">3165</td>
+              <td class="p-1.5">440</td><td class="p-1.5">365</td><td class="p-1.5">555</td><td class="p-1.5">145</td><td class="p-1.5">370</td><td class="p-1.5">310</td><td class="p-1.5">190</td><td class="p-1.5">385</td><td class="p-1.5">550</td>
+              <td class="p-1.5 bg-emerald-950 font-bold text-sky-300">3310</td>
+              <td class="p-1.5 bg-emerald-900 font-bold text-sky-300">6475</td>
+            </tr>
+            <tr class="border-b border-emerald-800/40 text-emerald-100 text-[11px]">
+              <td class="p-1.5 font-bold text-left text-emerald-300">White</td>
+              <td class="p-1.5">345</td><td class="p-1.5">365</td><td class="p-1.5">150</td><td class="p-1.5">365</td><td class="p-1.5">485</td><td class="p-1.5">295</td><td class="p-1.5">160</td><td class="p-1.5">515</td><td class="p-1.5">330</td>
+              <td class="p-1.5 bg-emerald-950 font-bold text-emerald-200">3010</td>
+              <td class="p-1.5">420</td><td class="p-1.5">350</td><td class="p-1.5">545</td><td class="p-1.5">140</td><td class="p-1.5">360</td><td class="p-1.5">300</td><td class="p-1.5">175</td><td class="p-1.5">370</td><td class="p-1.5">540</td>
+              <td class="p-1.5 bg-emerald-950 font-bold text-emerald-200">3200</td>
+              <td class="p-1.5 bg-emerald-900 font-bold text-emerald-200">6210</td>
+            </tr>
+            <tr class="border-b border-emerald-800/40 text-emerald-200">
+              <td class="p-2 font-bold text-left text-emerald-400">Par</td>
+              <td class="p-2">4</td><td class="p-2">4</td><td class="p-2">3</td><td class="p-2">4</td><td class="p-2">5</td><td class="p-2">4</td><td class="p-2">3</td><td class="p-2">5</td><td class="p-2">4</td>
+              <td class="p-2 bg-emerald-950/80 font-bold text-amber-300">36</td>
+              <td class="p-2">4</td><td class="p-2">4</td><td class="p-2">5</td><td class="p-2">3</td><td class="p-2">4</td><td class="p-2">4</td><td class="p-2">3</td><td class="p-2">4</td><td class="p-2">5</td>
+              <td class="p-2 bg-emerald-950/80 font-bold text-amber-300">36</td>
+              <td class="p-2 bg-emerald-900 font-extrabold text-amber-400">72</td>
+            </tr>
+            <tr id="scorecardRowScores" class="text-white font-bold border-b border-emerald-700/60">
+              <td class="p-2 font-bold text-left text-white">P1 Score</td>
+            </tr>
+            <tr id="scorecardRowScoresP2" class="text-white font-bold border-b border-emerald-700/60 hidden">
+              <td class="p-2 font-bold text-left text-amber-300">P2 Score</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="flex flex-wrap items-center justify-between gap-3 text-xs bg-emerald-950/60 p-3 rounded-2xl border border-emerald-600/30">
+        <div class="flex items-center gap-2">
+          <span class="inline-block w-4 h-4 rounded-full bg-yellow-400 text-emerald-950 text-[10px] font-black text-center leading-4">E</span> Eagle (-2)
+          <span class="inline-block w-4 h-4 rounded-full bg-emerald-400 text-emerald-950 text-[10px] font-black text-center leading-4">B</span> Birdie (-1)
+          <span class="inline-block w-4 h-4 rounded-full bg-white text-emerald-950 text-[10px] font-black text-center leading-4">P</span> Par (0)
+          <span class="inline-block w-4 h-4 rounded-full bg-orange-500 text-white text-[10px] font-black text-center leading-4">▲</span> Bogey (+1)
+          <span class="inline-block w-4 h-4 rounded-full bg-red-600 text-white text-[10px] font-black text-center leading-4">■</span> Double+ (+2)
+        </div>
+        <div class="text-right">
+          <span class="text-emerald-400">Difficulty: </span>
+          <span id="uiDifficultyBadge" class="font-bold text-white">Intermediate</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Round Finished Final Results Modal -->
+  <div id="finalResultsModal" class="absolute inset-0 bg-black/90 backdrop-blur-lg flex items-center justify-center z-50 hidden p-4">
+    <div class="bg-gradient-to-b from-emerald-900 via-emerald-950 to-black border-2 border-amber-400/60 rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl text-center">
+      <div class="text-4xl mb-2">🏆</div>
+      <h2 class="text-3xl font-black text-white mb-1" id="finalModalHeader">Championship Complete!</h2>
+      <p class="text-emerald-300/80 text-sm mb-6">Pine Valley 18-Hole Championship</p>
+
+      <!-- 1 Player Final Box -->
+      <div id="finalP1Container" class="bg-emerald-950/80 border border-emerald-500/40 rounded-2xl p-5 mb-6">
+        <div class="text-5xl font-black text-amber-300 mb-1" id="finalTotalScore">70</div>
+        <div class="text-emerald-300 font-bold text-lg mb-4" id="finalToPar">-2 (2 Under Par)</div>
+
+        <div class="grid grid-cols-4 gap-2 text-center text-xs border-t border-emerald-800/60 pt-4">
+          <div>
+            <div class="text-yellow-400 font-bold text-lg" id="finalEagles">0</div>
+            <div class="text-emerald-400/70">Eagles</div>
+          </div>
+          <div>
+            <div class="text-emerald-400 font-bold text-lg" id="finalBirdies">4</div>
+            <div class="text-emerald-400/70">Birdies</div>
+          </div>
+          <div>
+            <div class="text-white font-bold text-lg" id="finalPars">11</div>
+            <div class="text-emerald-400/70">Pars</div>
+          </div>
+          <div>
+            <div class="text-orange-400 font-bold text-lg" id="finalBogeys">3</div>
+            <div class="text-emerald-400/70">Bogeys</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2 Player Winner / Match Summary Box -->
+      <div id="final2PContainer" class="hidden bg-emerald-950/80 border border-emerald-500/40 rounded-2xl p-5 mb-6">
+        <div class="text-2xl font-black text-amber-300 mb-3" id="finalWinnerBanner">Player 1 Wins!</div>
+        <div class="grid grid-cols-2 gap-4 text-center border-t border-emerald-800/60 pt-3">
+          <div class="bg-emerald-900/40 p-3 rounded-xl border border-sky-500/40">
+            <span class="text-xs font-bold text-sky-400 block">PLAYER 1</span>
+            <span class="text-3xl font-black text-white" id="finalP1Strokes">72</span>
+            <span class="text-xs text-emerald-300 block font-semibold" id="finalP1ToPar">E</span>
+          </div>
+          <div class="bg-emerald-900/40 p-3 rounded-xl border border-amber-500/40">
+            <span class="text-xs font-bold text-amber-400 block">PLAYER 2</span>
+            <span class="text-3xl font-black text-white" id="finalP2Strokes">74</span>
+            <span class="text-xs text-emerald-300 block font-semibold" id="finalP2ToPar">+2</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-emerald-900/40 rounded-xl p-3 mb-6 text-sm text-emerald-200 border border-emerald-700/30">
+        Tour Rating: <strong id="finalRatingBadge" class="text-amber-300 font-black text-base">Scratch Golfer</strong>
+      </div>
+
+      <button id="btnRestartRound" class="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 text-emerald-950 font-black text-base shadow-xl transition active:scale-95">
+        Play Another Round ⟳
+      </button>
+    </div>
+  </div>
+
+  <!-- Difficulty & Welcome Modal -->
+  <div id="welcomeModal" class="absolute inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center z-50 p-4">
+    <div class="bg-gradient-to-b from-emerald-900 to-emerald-950 border border-emerald-500/50 rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl text-center">
+      <div class="text-5xl mb-2">⛳</div>
+      <h1 class="text-3xl sm:text-4xl font-black text-white tracking-tight mb-2">Fairway Classic</h1>
+      <p class="text-emerald-300/80 text-sm mb-4">Championship 18-Hole Tour with authentic distances, dynamic sweet-spot swing meter, real ballistics, wind, and green contour breaks.</p>
+
+      <!-- Game Mode Selection -->
+      <div class="text-left mb-4">
+        <label class="block text-xs uppercase font-bold text-emerald-400 mb-2">Select Game Mode:</label>
+        <div class="grid grid-cols-2 gap-2">
+          <label class="flex items-center p-2.5 rounded-xl bg-emerald-950/60 border border-emerald-700/40 cursor-pointer hover:border-emerald-400 transition">
+            <input type="radio" name="gameMode" value="1P" checked class="w-4 h-4 text-emerald-500" />
+            <div class="ml-2.5">
+              <span class="block text-sm font-bold text-white">Single Player</span>
+              <span class="block text-[11px] text-emerald-300/70">Solo 18-hole round</span>
+            </div>
+          </label>
+          <label class="flex items-center p-2.5 rounded-xl bg-emerald-950/60 border border-emerald-700/40 cursor-pointer hover:border-emerald-400 transition">
+            <input type="radio" name="gameMode" value="2P" class="w-4 h-4 text-emerald-500" />
+            <div class="ml-2.5">
+              <span class="block text-sm font-bold text-white">2-Player Match</span>
+              <span class="block text-[11px] text-emerald-300/70">Turn-by-turn pass & play</span>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <div class="text-left mb-6">
+        <label class="block text-xs uppercase font-bold text-emerald-400 mb-2">Select Difficulty:</label>
+        <div class="space-y-2">
+          <label class="flex items-center p-2.5 rounded-xl bg-emerald-950/60 border border-emerald-700/40 cursor-pointer hover:border-emerald-400 transition">
+            <input type="radio" name="difficulty" value="beginner" class="w-4 h-4 text-emerald-500" />
+            <div class="ml-3">
+              <span class="block text-sm font-bold text-white">Beginner</span>
+              <span class="block text-xs text-emerald-300/70">Larger sweet spot, gentler breezes, forgiving rough.</span>
+            </div>
+          </label>
+          <label class="flex items-center p-2.5 rounded-xl bg-emerald-950/60 border border-emerald-700/40 cursor-pointer hover:border-emerald-400 transition">
+            <input type="radio" name="difficulty" value="intermediate" checked class="w-4 h-4 text-emerald-500" />
+            <div class="ml-3">
+              <span class="block text-sm font-bold text-white">Intermediate (Championship)</span>
+              <span class="block text-xs text-emerald-300/70">Standard swing speed, realistic winds & penalties.</span>
+            </div>
+          </label>
+          <label class="flex items-center p-2.5 rounded-xl bg-emerald-950/60 border border-emerald-700/40 cursor-pointer hover:border-emerald-400 transition">
+            <input type="radio" name="difficulty" value="pro" class="w-4 h-4 text-emerald-500" />
+            <div class="ml-3">
+              <span class="block text-sm font-bold text-white">Tour Pro</span>
+              <span class="block text-xs text-emerald-300/70">Fast swing needle, tight impact window & gusty wind.</span>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <button id="btnStartGame" class="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-300 hover:from-emerald-300 hover:to-teal-200 text-emerald-950 font-black text-base shadow-xl transition active:scale-95">
+        Tee Off Now 🏌️‍♂️
+      </button>
+    </div>
+  </div>
+
+  <!-- GAME JAVASCRIPT ENGINE -->
+  <script>
+    /* =========================================================================
+       AUDIO SYNTHESIZER (Web Audio API - 100% Procedural)
+       ========================================================================= */
+    class GolfAudioEngine {
+      constructor() {
+        this.ctx = null;
+        this.muted = false;
+      }
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (AudioContext) {
+            this.ctx = new AudioContext();
+          }
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+      playDriver() {
+        if (this.muted || !this.ctx) return;
+        try {
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(160, now);
+          osc.frequency.exponentialRampToValueAtTime(420, now + 0.08);
+          gain.gain.setValueAtTime(0.3, now);
+          gain.gain.linearRampToValueAtTime(0.01, now + 0.12);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.13);
+
+          const bufferSize = Math.floor(this.ctx.sampleRate * 0.18);
+          const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < bufferSize; i++) {
+            data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.15));
+          }
+          const noise = this.ctx.createBufferSource();
+          noise.buffer = buffer;
+          const filter = this.ctx.createBiquadFilter();
+          filter.type = 'bandpass';
+          filter.frequency.setValueAtTime(1400, now);
+          filter.Q.setValueAtTime(2.0, now);
+          const crackGain = this.ctx.createGain();
+          crackGain.gain.setValueAtTime(0.8, now);
+          crackGain.gain.exponentialRampToValueAtTime(0.01, now + 0.22);
+          noise.connect(filter);
+          filter.connect(crackGain);
+          crackGain.connect(this.ctx.destination);
+          noise.start(now + 0.05);
+        } catch (e) {}
+      }
+      playIron() {
+        if (this.muted || !this.ctx) return;
+        try {
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(320, now);
+          osc.frequency.exponentialRampToValueAtTime(80, now + 0.12);
+          gain.gain.setValueAtTime(0.5, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.16);
+        } catch (e) {}
+      }
+      playPutt() {
+        if (this.muted || !this.ctx) return;
+        try {
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(280, now);
+          osc.frequency.exponentialRampToValueAtTime(140, now + 0.09);
+          gain.gain.setValueAtTime(0.4, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.1);
+        } catch (e) {}
+      }
+      playCupDrop() {
+        if (this.muted || !this.ctx) return;
+        try {
+          const now = this.ctx.currentTime;
+          [380, 520, 680].forEach((freq, idx) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, now + idx * 0.07);
+            gain.gain.setValueAtTime(0.3, now + idx * 0.07);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.07 + 0.12);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now + idx * 0.07);
+            osc.stop(now + idx * 0.07 + 0.13);
+          });
+        } catch (e) {}
+      }
+      playBunker() {
+        if (this.muted || !this.ctx) return;
+        try {
+          const now = this.ctx.currentTime;
+          const bufferSize = Math.floor(this.ctx.sampleRate * 0.3);
+          const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1);
+          const noise = this.ctx.createBufferSource();
+          noise.buffer = buffer;
+          const filter = this.ctx.createBiquadFilter();
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(450, now);
+          const gain = this.ctx.createGain();
+          gain.gain.setValueAtTime(0.6, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.28);
+          noise.connect(filter);
+          filter.connect(gain);
+          gain.connect(this.ctx.destination);
+          noise.start(now);
+        } catch (e) {}
+      }
+      playWater() {
+        if (this.muted || !this.ctx) return;
+        try {
+          const now = this.ctx.currentTime;
+          const bufferSize = Math.floor(this.ctx.sampleRate * 0.45);
+          const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1);
+          const noise = this.ctx.createBufferSource();
+          noise.buffer = buffer;
+          const filter = this.ctx.createBiquadFilter();
+          filter.type = 'bandpass';
+          filter.frequency.setValueAtTime(300, now);
+          filter.frequency.exponentialRampToValueAtTime(150, now + 0.4);
+          const gain = this.ctx.createGain();
+          gain.gain.setValueAtTime(0.7, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.42);
+          noise.connect(filter);
+          filter.connect(gain);
+          gain.connect(this.ctx.destination);
+          noise.start(now);
+        } catch (e) {}
+      }
+      playClick() {
+        if (this.muted || !this.ctx) return;
+        try {
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(800, now);
+          gain.gain.setValueAtTime(0.15, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.04);
+        } catch (e) {}
+      }
+    }
+    const audio = new GolfAudioEngine();
+
+    /* =========================================================================
+       CLUBS DATA (Realistic Golf Carry Distances in Yards & Lofts)
+       ========================================================================= */
+    const CLUBS = [
+      { id: '1W', name: 'Driver',         type: 'wood',   baseDist: 260, loft: 12, rollDist: 28 },
+      { id: '3W', name: '3 Wood',         type: 'wood',   baseDist: 230, loft: 15, rollDist: 20 },
+      { id: '3H', name: 'Hybrid (3H)',    type: 'hybrid', baseDist: 210, loft: 19, rollDist: 16 },
+      { id: '5I', name: '5 Iron',         type: 'iron',   baseDist: 190, loft: 24, rollDist: 14 },
+      { id: '6I', name: '6 Iron',         type: 'iron',   baseDist: 175, loft: 28, rollDist: 11 },
+      { id: '7I', name: '7 Iron',         type: 'iron',   baseDist: 160, loft: 32, rollDist: 9 },
+      { id: '8I', name: '8 Iron',         type: 'iron',   baseDist: 145, loft: 36, rollDist: 7 },
+      { id: '9I', name: '9 Iron',         type: 'iron',   baseDist: 130, loft: 40, rollDist: 5 },
+      { id: 'PW', name: 'Pitching Wedge', type: 'wedge',  baseDist: 115, loft: 45, rollDist: 4 },
+      { id: 'SW', name: 'Sand Wedge',     type: 'wedge',  baseDist: 85,  loft: 54, rollDist: 2 },
+      { id: 'PT', name: 'Putter',         type: 'putter', baseDist: 35,  loft: 3,  rollDist: 0 }
+    ];
+
+    /* =========================================================================
+       18-HOLE CHAMPIONSHIP COURSE (1 Pixel = 1 Real Yard Scale)
+       ========================================================================= */
+    const COURSE_HOLES = [
+      {
+        num: 1, par: 4, name: "Hole 1",
+        tee: { x: 580, y: 940 },
+        green: { x: 730, y: 805, r: 24 },
+        pin: { x: 732, y: 801 },
+        slope: { dir: Math.PI * 0.7, mag: 1.4 },
+        fairwaySegments: [
+          { x1: 580, y1: 910, x2: 630, y2: 870, width: 52 },
+          { x1: 630, y1: 870, x2: 720, y2: 815, width: 50 }
+        ],
+        bunkers: [
+          { x: 700, y: 825, rx: 14, ry: 18 }
+        ],
+        water: [],
+        trees: [
+          { x: 540, y: 880, r: 24 }, { x: 670, y: 890, r: 24 }
+        ]
+      },
+      {
+        num: 2, par: 4, name: "Hole 2",
+        tee: { x: 550, y: 920 },
+        green: { x: 440, y: 735, r: 25 },
+        pin: { x: 438, y: 730 },
+        slope: { dir: Math.PI * 0.3, mag: 1.6 },
+        fairwaySegments: [
+          { x1: 540, y1: 890, x2: 480, y2: 810, width: 56 },
+          { x1: 480, y1: 810, x2: 440, y2: 745, width: 52 }
+        ],
+        bunkers: [
+          { x: 415, y: 755, rx: 16, ry: 24 },
+          { x: 465, y: 825, rx: 16, ry: 20 }
+        ],
+        water: [],
+        trees: [
+          { x: 400, y: 850, r: 26 }, { x: 520, y: 840, r: 26 }
+        ]
+      },
+      {
+        num: 3, par: 3, name: "Hole 3",
+        tee: { x: 470, y: 755 },
+        green: { x: 480, y: 715, r: 21 },
+        pin: { x: 482, y: 712 },
+        slope: { dir: Math.PI * 1.1, mag: 1.8 },
+        fairwaySegments: [
+          { x1: 470, y1: 750, x2: 480, y2: 720, width: 42 }
+        ],
+        bunkers: [
+          { x: 460, y: 710, rx: 10, ry: 14 }
+        ],
+        water: [
+          { x: 518, y: 760, rx: 16, ry: 40 }
+        ],
+        trees: [
+          { x: 440, y: 710, r: 22 }
+        ]
+      },
+      {
+        num: 4, par: 4, name: "Hole 4",
+        tee: { x: 535, y: 775 },
+        green: { x: 890, y: 765, r: 24 },
+        pin: { x: 892, y: 761 },
+        slope: { dir: Math.PI * 0.5, mag: 1.5 },
+        fairwaySegments: [
+          { x1: 550, y1: 775, x2: 710, y2: 770, width: 58 },
+          { x1: 710, y1: 770, x2: 880, y2: 765, width: 54 }
+        ],
+        bunkers: [
+          { x: 875, y: 785, rx: 18, ry: 12 },
+          { x: 680, y: 790, rx: 16, ry: 18 }
+        ],
+        water: [
+          { x: 518, y: 760, rx: 16, ry: 40 }
+        ],
+        trees: [
+          { x: 620, y: 730, r: 25 }, { x: 780, y: 730, r: 25 }
+        ]
+      },
+      {
+        num: 5, par: 5, name: "Hole 5",
+        tee: { x: 1140, y: 410 },
+        green: { x: 500, y: 405, r: 26 },
+        pin: { x: 496, y: 402 },
+        slope: { dir: Math.PI * 1.5, mag: 1.3 },
+        fairwaySegments: [
+          { x1: 1120, y1: 410, x2: 800, y2: 410, width: 64 },
+          { x1: 800, y1: 410, x2: 515, y2: 405, width: 58 }
+        ],
+        bunkers: [
+          { x: 530, y: 425, rx: 16, ry: 12 }
+        ],
+        water: [],
+        trees: [
+          { x: 850, y: 450, r: 26 }, { x: 680, y: 450, r: 26 }
+        ]
+      },
+      {
+        num: 6, par: 4, name: "Hole 6",
+        tee: { x: 480, y: 310 },
+        green: { x: 820, y: 305, r: 25 },
+        pin: { x: 822, y: 302 },
+        slope: { dir: Math.PI * 0.2, mag: 1.5 },
+        fairwaySegments: [
+          { x1: 500, y1: 310, x2: 560, y2: 310, width: 50 },
+          { x1: 720, y1: 305, x2: 810, y2: 305, width: 52 }
+        ],
+        bunkers: [
+          { x: 825, y: 280, rx: 14, ry: 14 }
+        ],
+        water: [
+          { x: 630, y: 310, rx: 50, ry: 70 }
+        ],
+        trees: [
+          { x: 510, y: 260, r: 24 }, { x: 760, y: 260, r: 24 }
+        ]
+      },
+      {
+        num: 7, par: 3, name: "Hole 7",
+        tee: { x: 500, y: 210 },
+        green: { x: 670, y: 210, r: 22 },
+        pin: { x: 672, y: 206 },
+        slope: { dir: Math.PI * 0.8, mag: 1.7 },
+        fairwaySegments: [
+          { x1: 510, y1: 210, x2: 540, y2: 210, width: 42 },
+          { x1: 630, y1: 210, x2: 665, y2: 210, width: 44 }
+        ],
+        bunkers: [],
+        water: [
+          { x: 585, y: 210, rx: 42, ry: 32 }
+        ],
+        trees: [
+          { x: 480, y: 160, r: 24 }, { x: 700, y: 160, r: 24 }
+        ]
+      },
+      {
+        num: 8, par: 5, name: "Hole 8",
+        tee: { x: 460, y: 105 },
+        green: { x: 1320, y: 110, r: 27 },
+        pin: { x: 1322, y: 106 },
+        slope: { dir: Math.PI * 0.6, mag: 1.4 },
+        fairwaySegments: [
+          { x1: 480, y1: 105, x2: 880, y2: 95, width: 68 },
+          { x1: 880, y1: 95, x2: 1305, y2: 110, width: 62 }
+        ],
+        bunkers: [
+          { x: 1100, y: 130, rx: 22, ry: 15 },
+          { x: 1290, y: 85, rx: 16, ry: 14 }
+        ],
+        water: [
+          { x: 520, y: 100, rx: 38, ry: 26 }
+        ],
+        trees: [
+          { x: 700, y: 55, r: 26 }, { x: 1050, y: 55, r: 26 }
+        ]
+      },
+      {
+        num: 9, par: 4, name: "Hole 9",
+        tee: { x: 915, y: 695 },
+        green: { x: 880, y: 180, r: 24 },
+        pin: { x: 882, y: 176 },
+        slope: { dir: Math.PI * 1.3, mag: 1.5 },
+        fairwaySegments: [
+          { x1: 915, y1: 670, x2: 900, y2: 420, width: 56 },
+          { x1: 900, y1: 420, x2: 880, y2: 195, width: 54 }
+        ],
+        bunkers: [
+          { x: 920, y: 640, rx: 16, ry: 25 }
+        ],
+        water: [],
+        trees: [
+          { x: 950, y: 500, r: 26 }, { x: 940, y: 320, r: 26 }
+        ]
+      },
+      {
+        num: 10, par: 4, name: "Hole 10",
+        tee: { x: 480, y: 520 },
+        green: { x: 940, y: 535, r: 25 },
+        pin: { x: 942, y: 530 },
+        slope: { dir: Math.PI * 0.4, mag: 1.5 },
+        fairwaySegments: [
+          { x1: 500, y1: 520, x2: 720, y2: 525, width: 62 },
+          { x1: 720, y1: 525, x2: 930, y2: 535, width: 58 }
+        ],
+        bunkers: [
+          { x: 840, y: 565, rx: 20, ry: 15 },
+          { x: 890, y: 570, rx: 18, ry: 14 }
+        ],
+        water: [],
+        trees: [
+          { x: 440, y: 510, r: 24 }, { x: 700, y: 490, r: 24 }
+        ]
+      },
+      {
+        num: 11, par: 4, name: "Hole 11",
+        tee: { x: 395, y: 495 },
+        green: { x: 230, y: 490, r: 24 },
+        pin: { x: 228, y: 488 },
+        slope: { dir: Math.PI * 1.7, mag: 1.4 },
+        fairwaySegments: [
+          { x1: 380, y1: 495, x2: 300, y2: 492, width: 56 },
+          { x1: 300, y1: 492, x2: 240, y2: 490, width: 54 }
+        ],
+        bunkers: [
+          { x: 285, y: 515, rx: 18, ry: 12 }
+        ],
+        water: [],
+        trees: [
+          { x: 200, y: 460, r: 24 }
+        ]
+      },
+      {
+        num: 12, par: 5, name: "Hole 12",
+        tee: { x: 65, y: 930 },
+        green: { x: 65, y: 510, r: 27 },
+        pin: { x: 64, y: 506 },
+        slope: { dir: Math.PI * 0.9, mag: 1.5 },
+        fairwaySegments: [
+          { x1: 65, y1: 900, x2: 65, y2: 700, width: 62 },
+          { x1: 65, y1: 700, x2: 65, y2: 525, width: 58 }
+        ],
+        bunkers: [
+          { x: 42, y: 720, rx: 14, ry: 24 }
+        ],
+        water: [],
+        trees: [
+          { x: 25, y: 840, r: 24 }, { x: 25, y: 620, r: 24 }
+        ]
+      },
+      {
+        num: 13, par: 3, name: "Hole 13",
+        tee: { x: 65, y: 965 },
+        green: { x: 220, y: 965, r: 21 },
+        pin: { x: 222, y: 962 },
+        slope: { dir: Math.PI * 0.1, mag: 1.8 },
+        fairwaySegments: [
+          { x1: 75, y1: 965, x2: 210, y2: 965, width: 44 }
+        ],
+        bunkers: [
+          { x: 205, y: 945, rx: 14, ry: 10 }
+        ],
+        water: [],
+        trees: [
+          { x: 140, y: 935, r: 22 }
+        ]
+      },
+      {
+        num: 14, par: 4, name: "Hole 14",
+        tee: { x: 190, y: 930 },
+        green: { x: 170, y: 720, r: 24 },
+        pin: { x: 168, y: 716 },
+        slope: { dir: Math.PI * 0.7, mag: 1.6 },
+        fairwaySegments: [
+          { x1: 190, y1: 910, x2: 210, y2: 830, width: 54 },
+          { x1: 210, y1: 830, x2: 175, y2: 735, width: 52 }
+        ],
+        bunkers: [
+          { x: 145, y: 735, rx: 14, ry: 18 }
+        ],
+        water: [
+          { x: 185, y: 830, rx: 38, ry: 38 }
+        ],
+        trees: [
+          { x: 120, y: 800, r: 24 }
+        ]
+      },
+      {
+        num: 15, par: 4, name: "Hole 15",
+        tee: { x: 380, y: 665 },
+        green: { x: 270, y: 735, r: 24 },
+        pin: { x: 272, y: 732 },
+        slope: { dir: Math.PI * 1.2, mag: 1.5 },
+        fairwaySegments: [
+          { x1: 370, y1: 675, x2: 325, y2: 705, width: 52 },
+          { x1: 325, y1: 705, x2: 280, y2: 730, width: 50 }
+        ],
+        bunkers: [
+          { x: 360, y: 725, rx: 14, ry: 14 }
+        ],
+        water: [
+          { x: 325, y: 730, rx: 25, ry: 25 }
+        ],
+        trees: [
+          { x: 400, y: 710, r: 24 }
+        ]
+      },
+      {
+        num: 16, par: 3, name: "Hole 16",
+        tee: { x: 280, y: 660 },
+        green: { x: 180, y: 660, r: 22 },
+        pin: { x: 182, y: 658 },
+        slope: { dir: Math.PI * 1.8, mag: 2.0 },
+        fairwaySegments: [
+          { x1: 270, y1: 660, x2: 255, y2: 660, width: 38 },
+          { x1: 200, y1: 660, x2: 185, y2: 660, width: 42 }
+        ],
+        bunkers: [
+          { x: 195, y: 685, rx: 14, ry: 10 }
+        ],
+        water: [
+          { x: 238, y: 665, rx: 24, ry: 34 }
+        ],
+        trees: [
+          { x: 230, y: 615, r: 22 }
+        ]
+      },
+      {
+        num: 17, par: 4, name: "Hole 17",
+        tee: { x: 390, y: 550 },
+        green: { x: 240, y: 585, r: 24 },
+        pin: { x: 242, y: 582 },
+        slope: { dir: Math.PI * 0.4, mag: 1.6 },
+        fairwaySegments: [
+          { x1: 375, y1: 555, x2: 310, y2: 575, width: 55 },
+          { x1: 310, y1: 575, x2: 250, y2: 585, width: 52 }
+        ],
+        bunkers: [
+          { x: 325, y: 590, rx: 16, ry: 12 },
+          { x: 230, y: 605, rx: 14, ry: 10 }
+        ],
+        water: [],
+        trees: [
+          { x: 320, y: 530, r: 24 }
+        ]
+      },
+      {
+        num: 18, par: 5, name: "Hole 18",
+        tee: { x: 440, y: 620 },
+        green: { x: 980, y: 635, r: 28 },
+        pin: { x: 982, y: 632 },
+        slope: { dir: Math.PI * 1.4, mag: 1.5 },
+        fairwaySegments: [
+          { x1: 460, y1: 620, x2: 700, y2: 625, width: 66 },
+          { x1: 700, y1: 625, x2: 970, y2: 635, width: 62 }
+        ],
+        bunkers: [
+          { x: 740, y: 665, rx: 24, ry: 14 },
+          { x: 795, y: 670, rx: 26, ry: 14 },
+          { x: 850, y: 672, rx: 24, ry: 14 },
+          { x: 965, y: 665, rx: 16, ry: 12 }
+        ],
+        water: [],
+        trees: [
+          { x: 550, y: 580, r: 26 }, { x: 780, y: 580, r: 26 }
+        ]
+      }
+    ];
+
+    /* =========================================================================
+       GAME STATE & CONFIGURATION
+       ========================================================================= */
+    const state = {
+      gameMode: '1P', // '1P' or '2P'
+      activePlayerIdx: 0,
+      players: [
+        {
+          id: 0,
+          name: 'Player 1',
+          color: '#ffffff',
+          accent: '#38bdf8',
+          scores: new Array(18).fill(null),
+          shotCount: 1,
+          selectedClubIdx: 0,
+          aimAngle: -Math.PI / 2,
+          ball: {
+            x: 0, y: 0, z: 0,
+            vx: 0, vy: 0, vz: 0,
+            inFlight: false, isRolling: false,
+            trail: [], lie: 'Tee',
+            lastGoodLie: { x: 0, y: 0 },
+            inCup: false, hasLipped: false
+          }
+        },
+        {
+          id: 1,
+          name: 'Player 2',
+          color: '#fbbf24',
+          accent: '#f59e0b',
+          scores: new Array(18).fill(null),
+          shotCount: 1,
+          selectedClubIdx: 0,
+          aimAngle: -Math.PI / 2,
+          ball: {
+            x: 0, y: 0, z: 0,
+            vx: 0, vy: 0, vz: 0,
+            inFlight: false, isRolling: false,
+            trail: [], lie: 'Tee',
+            lastGoodLie: { x: 0, y: 0 },
+            inCup: false, hasLipped: false
+          }
+        }
+      ],
+      difficulty: 'intermediate',
+      currentHoleIdx: 0,
+      isResetting: false,
+      camera: {
+        x: 0, y: 0,
+        targetX: 0, targetY: 0,
+        zoom: 1.0, targetZoom: 1.0,
+        mode: 'follow'
+      },
+      wind: {
+        angle: 0,
+        speed: 6
+      },
+      swing: {
+        state: 'READY',
+        powerProgress: 0,
+        powerDir: 1,
+        selectedPower: 1,
+        snapProgress: 1.0,
+        sweetSpotLocation: 0.15,
+        sweetSpotWidth: 0.10,
+        speedMultiplier: 1.0
+      },
+      puttingGridDots: []
+    };
+
+    function getActivePlayer() {
+      return state.players[state.activePlayerIdx];
+    }
+    function getActiveBall() {
+      return state.players[state.activePlayerIdx].ball;
+    }
+
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const meterCanvas = document.getElementById('meterCanvas');
+    const meterCtx = meterCanvas.getContext('2d');
+
+    const uiPlayerIndicator = document.getElementById('uiPlayerIndicator');
+    const uiCurrentPlayerBadge = document.getElementById('uiCurrentPlayerBadge');
+    const uiHoleNum = document.getElementById('uiHoleNum');
+    const uiHolePar = document.getElementById('uiHolePar');
+    const uiPinDist = document.getElementById('uiPinDist');
+    const uiShotNum = document.getElementById('uiShotNum');
+    const uiLieText = document.getElementById('uiLieText');
+    const uiWindArrow = document.getElementById('uiWindArrow');
+    const uiWindSpeed = document.getElementById('uiWindSpeed');
+    const uiTotalScore = document.getElementById('uiTotalScore');
+    const uiClubName = document.getElementById('uiClubName');
+    const uiClubDist = document.getElementById('uiClubDist');
+    const uiClubLoft = document.getElementById('uiClubLoft');
+    const uiAimAngle = document.getElementById('uiAimAngle');
+    const swingPrompt = document.getElementById('swingPrompt');
+    const shotBanner = document.getElementById('shotBanner');
+    const shotBannerContent = document.getElementById('shotBannerContent');
+
+    const welcomeModal = document.getElementById('welcomeModal');
+    const holeCompleteModal = document.getElementById('holeCompleteModal');
+    const scorecardModal = document.getElementById('scorecardModal');
+    const finalResultsModal = document.getElementById('finalResultsModal');
+    const courseMapModal = document.getElementById('courseMapModal');
+    const overviewCanvas = document.getElementById('overviewCanvas');
+    const overviewCtx = overviewCanvas.getContext('2d');
+
+    function resizeCanvases() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      meterCanvas.width = meterCanvas.parentElement.clientWidth;
+      meterCanvas.height = meterCanvas.parentElement.clientHeight;
+    }
+    window.addEventListener('resize', resizeCanvases);
+
+    function setDifficulty(level) {
+      state.difficulty = level;
+      document.getElementById('uiDifficultyBadge').innerText =
+        level.charAt(0).toUpperCase() + level.slice(1);
+
+      if (level === 'beginner') {
+        state.swing.speedMultiplier = 0.75;
+        state.swing.sweetSpotWidth = 0.16;
+      } else if (level === 'intermediate') {
+        state.swing.speedMultiplier = 1.0;
+        state.swing.sweetSpotWidth = 0.11;
+      } else if (level === 'pro') {
+        state.swing.speedMultiplier = 1.3;
+        state.swing.sweetSpotWidth = 0.07;
+      }
+    }
+
+    function randomizeSweetSpot() {
+      const minLoc = 0.09;
+      const maxLoc = 0.42;
+      state.swing.sweetSpotLocation = Number((minLoc + Math.random() * (maxLoc - minLoc)).toFixed(3));
+    }
+
+    function initHole(holeIdx) {
+      state.currentHoleIdx = holeIdx;
+      const hole = COURSE_HOLES[holeIdx];
+      state.isResetting = false;
+
+      const count = state.gameMode === '2P' ? 2 : 1;
+      for (let i = 0; i < count; i++) {
+        const p = state.players[i];
+        p.shotCount = 1;
+        const offsetX = i === 0 ? -2.5 : 2.5;
+        p.ball.x = hole.tee.x + offsetX;
+        p.ball.y = hole.tee.y;
+        p.ball.z = 0;
+        p.ball.vx = 0;
+        p.ball.vy = 0;
+        p.ball.vz = 0;
+        p.ball.inFlight = false;
+        p.ball.isRolling = false;
+        p.ball.trail = [];
+        p.ball.lie = 'Tee';
+        p.ball.lastGoodLie = { x: p.ball.x, y: p.ball.y };
+        p.ball.inCup = false;
+        p.ball.hasLipped = false;
+
+        const dx = hole.pin.x - p.ball.x;
+        const dy = hole.pin.y - p.ball.y;
+        p.aimAngle = Math.atan2(dy, dx);
+      }
+
+      state.activePlayerIdx = 0;
+
+      const pActive = getActivePlayer();
+      state.camera.x = pActive.ball.x;
+      state.camera.y = pActive.ball.y - 80;
+      state.camera.targetX = state.camera.x;
+      state.camera.targetY = state.camera.y;
+      state.camera.zoom = 1.1;
+      state.camera.targetZoom = 1.1;
+
+      autoSelectBestClub();
+
+      const maxWind = state.difficulty === 'beginner' ? 6 : (state.difficulty === 'pro' ? 18 : 12);
+      state.wind.angle = Math.random() * Math.PI * 2;
+      state.wind.speed = Math.round(2 + Math.random() * (maxWind - 2));
+
+      randomizeSweetSpot();
+      resetSwingMeter();
+      generatePuttingDots(hole);
+      updateUI();
+    }
+
+    function autoSelectBestClub() {
+      const hole = COURSE_HOLES[state.currentHoleIdx];
+      const p = getActivePlayer();
+      const dist = Math.hypot(hole.pin.x - p.ball.x, hole.pin.y - p.ball.y);
+      
+      if (p.ball.lie === 'Green') {
+        p.selectedClubIdx = CLUBS.findIndex(c => c.id === 'PT');
+        return;
+      }
+      for (let i = 0; i < CLUBS.length - 1; i++) {
+        if (CLUBS[i].baseDist <= dist * 1.06 || i === CLUBS.length - 2) {
+          p.selectedClubIdx = i;
+          break;
+        }
+      }
+    }
+
+    function generatePuttingDots(hole) {
+      state.puttingGridDots = [];
+      const green = hole.green;
+      const spacing = 3.5;
+      for (let x = green.x - green.r; x <= green.x + green.r; x += spacing) {
+        for (let y = green.y - green.r; y <= green.y + green.r; y += spacing) {
+          if (Math.hypot(x - green.x, y - green.y) < green.r - 1.2) {
+            state.puttingGridDots.push({
+              x: x,
+              y: y,
+              phase: Math.random() * Math.PI * 2
+            });
+          }
+        }
+      }
+    }
+
+    function checkLie(x, y) {
+      const hole = COURSE_HOLES[state.currentHoleIdx];
+
+      // Green & Fringe evaluated first
+      const dGreen = Math.hypot(x - hole.green.x, y - hole.green.y);
+      if (dGreen <= hole.green.r) return 'Green';
+      if (dGreen <= hole.green.r + 3.5) return 'Fringe';
+
+      // Bunkers
+      for (const b of hole.bunkers) {
+        const dx = (x - b.x) / b.rx;
+        const dy = (y - b.y) / b.ry;
+        if (dx * dx + dy * dy <= 1.0) return 'Sand';
+      }
+
+      // Water Hazards
+      for (const w of hole.water) {
+        const dx = (x - w.x) / w.rx;
+        const dy = (y - w.y) / w.ry;
+        if (dx * dx + dy * dy <= 1.0) return 'Water';
+      }
+
+      // Fairway corridors
+      for (const seg of hole.fairwaySegments) {
+        const dist = distToSegment({ x, y }, { x: seg.x1, y: seg.y1 }, { x: seg.x2, y: seg.y2 });
+        if (dist <= seg.width / 2) return 'Fairway';
+      }
+
+      // Tee box area
+      if (Math.hypot(x - hole.tee.x, y - hole.tee.y) < 16) return 'Tee';
+
+      // Boundary
+      if (x < -200 || x > 3200 || y < -100 || y > 1500) return 'OB';
+
+      return 'Rough';
+    }
+
+    function distToSegment(p, v, w) {
+      const l2 = (v.x - w.x) ** 2 + (v.y - w.y) ** 2;
+      if (l2 === 0) return Math.hypot(p.x - v.x, p.y - v.y);
+      let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
+      t = Math.max(0, Math.min(1, t));
+      return Math.hypot(p.x - (v.x + t * (w.x - v.x)), p.y - (v.y + t * (w.y - v.y)));
+    }
+
+    function resetSwingMeter() {
+      state.swing.state = 'READY';
+      state.swing.powerProgress = 0;
+      state.swing.powerDir = 1;
+      state.swing.selectedPower = 1.0;
+      state.swing.snapProgress = 1.0;
+      const p = getActivePlayer();
+      swingPrompt.innerText = state.gameMode === '2P' 
+        ? `${p.name}: Click or Press Space to Swing`
+        : "Click or Press Space to Swing";
+    }
+
+    function handleSwingInput() {
+      audio.init();
+      const s = state.swing;
+      const b = getActiveBall();
+
+      if (b.inFlight || b.isRolling || b.inCup || state.isResetting) return;
+
+      if (s.state === 'READY') {
+        s.state = 'POWER';
+        s.powerProgress = 0;
+        s.powerDir = 1;
+        audio.playClick();
+        swingPrompt.innerText = "Click to Lock Power!";
+      } else if (s.state === 'POWER') {
+        s.state = 'SNAP';
+        s.selectedPower = Math.max(0.25, s.powerProgress);
+        s.snapProgress = 1.0;
+        audio.playClick();
+        swingPrompt.innerText = "Click at the Moving Notch!";
+      } else if (s.state === 'SNAP') {
+        s.state = 'EXECUTING';
+        audio.playClick();
+        evaluateAndExecuteShot();
+      }
+    }
+
+    function evaluateAndExecuteShot() {
+      const s = state.swing;
+      const p = getActivePlayer();
+      const b = p.ball;
+      const club = CLUBS[p.selectedClubIdx];
+      const hole = COURSE_HOLES[state.currentHoleIdx];
+      const distToPin = Math.hypot(hole.pin.x - b.x, hole.pin.y - b.y);
+
+      const snapErr = s.snapProgress - s.sweetSpotLocation;
+      const halfW = s.sweetSpotWidth / 2;
+
+      let timingResult = 'PERFECT CONTACT!';
+      let dispersionAngle = 0;
+      let powerModifier = 1.0;
+      let rollModifier = 1.0;
+
+      const absErr = Math.abs(snapErr);
+
+      if (absErr <= halfW) {
+        timingResult = 'PERFECT CONTACT!';
+        dispersionAngle = (snapErr / halfW) * 0.012;
+      } else if (absErr <= halfW * 2.2) {
+        if (snapErr < 0) {
+          timingResult = 'SLIGHT DRAW / PULL';
+          dispersionAngle = -0.035;
+        } else {
+          timingResult = 'SLIGHT FADE / PUSH';
+          dispersionAngle = 0.035;
+        }
+        powerModifier = 0.97;
+      } else if (absErr <= halfW * 4.0) {
+        if (snapErr < 0) {
+          timingResult = 'HOOK!';
+          dispersionAngle = -0.09;
+        } else {
+          timingResult = 'SLICE!';
+          dispersionAngle = 0.09;
+        }
+        powerModifier = 0.90;
+      } else {
+        if (snapErr < 0) {
+          timingResult = 'FAT SHOT (Heavy Turf)';
+          powerModifier = 0.72;
+          rollModifier = 0.5;
+          dispersionAngle = -0.14;
+        } else {
+          timingResult = 'THIN SHOT (Bladed Skull)';
+          powerModifier = 0.85;
+          rollModifier = 1.6;
+          dispersionAngle = 0.14;
+        }
+      }
+
+      showToastBanner(`${p.name}: ${timingResult}`, timingResult.includes('PERFECT') ? 'text-amber-300 border-amber-400' : 'text-emerald-200 border-emerald-400');
+
+      let lieMultiplier = 1.0;
+      if (b.lie === 'Rough') lieMultiplier = 0.88;
+      if (b.lie === 'Sand') {
+        lieMultiplier = club.id === 'SW' ? 0.85 : 0.45;
+        audio.playBunker();
+      }
+
+      const effectiveAim = p.aimAngle + dispersionAngle;
+
+      if (club.id === 'PT' || b.lie === 'Green') {
+        audio.playPutt();
+        const baseTarget = distToPin <= 10 ? Math.max(3.5, distToPin * 1.3) : Math.max(8, Math.min(club.baseDist, distToPin * 1.15));
+        const puttDistance = baseTarget * s.selectedPower * powerModifier;
+        const rollSpeed = Math.sqrt(2 * 14.0 * puttDistance);
+
+        b.vx = Math.cos(effectiveAim) * rollSpeed;
+        b.vy = Math.sin(effectiveAim) * rollSpeed;
+        b.vz = 0;
+        b.z = 0;
+        b.inFlight = false;
+        b.isRolling = true;
+      } else {
+        if (club.type === 'wood') audio.playDriver();
+        else audio.playIron();
+
+        const actualCarryYards = club.baseDist * s.selectedPower * powerModifier * lieMultiplier;
+        const g = 12.0;
+        const dynamicLoftRad = (club.loft * 0.75) * (Math.PI / 180);
+
+        const sin2Loft = Math.sin(2 * dynamicLoftRad);
+        const v0 = Math.sqrt((actualCarryYards * g) / Math.max(0.15, sin2Loft));
+        const vHorizontal = v0 * Math.cos(dynamicLoftRad);
+        const vVertical = v0 * Math.sin(dynamicLoftRad);
+
+        b.vx = Math.cos(effectiveAim) * vHorizontal;
+        b.vy = Math.sin(effectiveAim) * vHorizontal;
+        b.vz = vVertical;
+        b.inFlight = true;
+        b.isRolling = false;
+        b.rollDistRemaining = club.rollDist * rollModifier * (b.lie === 'Rough' ? 0.4 : 1.0);
+      }
+
+      b.hasLipped = false;
+      b.trail = [{ x: b.x, y: b.y, z: b.z }];
+      b.lastGoodLie = { x: b.x, y: b.y };
+    }
+
+    function showToastBanner(text, styleClasses) {
+      shotBannerContent.className = `bg-black/90 backdrop-blur-md border-2 font-black px-6 py-2 rounded-full shadow-2xl text-center text-sm sm:text-base tracking-wide flex items-center gap-2 ${styleClasses}`;
+      shotBannerContent.innerHTML = `<span>${text}</span>`;
+      shotBanner.style.opacity = '1';
+      shotBanner.style.transform = 'translate(-50%, 0)';
+      setTimeout(() => {
+        shotBanner.style.opacity = '0';
+        shotBanner.style.transform = 'translate(-50%, -15px)';
+      }, 2200);
+    }
+
+    const dt = 1 / 60;
+
+    function updatePhysics() {
+      const p = getActivePlayer();
+      const b = p.ball;
+      const hole = COURSE_HOLES[state.currentHoleIdx];
+
+      updateSwingMeterLogic();
+
+      if (b.inFlight) {
+        const windDrift = (state.wind.speed / 12) * 1.5;
+        b.vx += Math.cos(state.wind.angle) * windDrift * dt;
+        b.vy += Math.sin(state.wind.angle) * windDrift * dt;
+
+        const g = 12.0;
+        b.vz -= g * dt;
+
+        b.x += b.vx * dt;
+        b.y += b.vy * dt;
+        b.z += b.vz * dt;
+
+        for (const t of hole.trees) {
+          if (Math.hypot(b.x - t.x, b.y - t.y) < t.r && b.z < 16) {
+            b.vx *= 0.25;
+            b.vy *= 0.25;
+            b.vz = -2;
+            showToastBanner(`${p.name}: HIT THE TREES!`, "text-orange-400 border-orange-500");
+            break;
+          }
+        }
+
+        if (Math.random() < 0.65) {
+          b.trail.push({ x: b.x, y: b.y, z: b.z });
+          if (b.trail.length > 80) b.trail.shift();
+        }
+
+        if (b.z <= 0) {
+          b.z = 0;
+          const currentLie = checkLie(b.x, b.y);
+
+          if (currentLie === 'Water') {
+            audio.playWater();
+            handleWaterHazard();
+            return;
+          }
+
+          let bounceRestitution = 0.35;
+          if (currentLie === 'Sand') bounceRestitution = 0.05;
+          else if (currentLie === 'Rough') bounceRestitution = 0.15;
+          else if (currentLie === 'Green') bounceRestitution = 0.25;
+
+          b.vz = -b.vz * bounceRestitution;
+          b.vx *= 0.85;
+          b.vy *= 0.85;
+
+          if (Math.abs(b.vz) < 2.0) {
+            b.z = 0;
+            b.vz = 0;
+            b.inFlight = false;
+            b.isRolling = true;
+
+            const rollDist = b.rollDistRemaining || 8;
+            const rollSpeed = Math.sqrt(2 * 12.0 * rollDist);
+            const moveDir = Math.atan2(b.vy, b.vx);
+            b.vx = Math.cos(moveDir) * rollSpeed;
+            b.vy = Math.sin(moveDir) * rollSpeed;
+          }
+        }
+      }
+
+      if (b.isRolling) {
+        const currentLie = checkLie(b.x, b.y);
+        b.lie = currentLie;
+
+        if (currentLie === 'Water') {
+          audio.playWater();
+          handleWaterHazard();
+          return;
+        }
+
+        let frictionDecel = 12.0;
+        if (currentLie === 'Green') frictionDecel = 9.0;
+        else if (currentLie === 'Fringe') frictionDecel = 14.0;
+        else if (currentLie === 'Rough') frictionDecel = 24.0;
+        else if (currentLie === 'Sand') frictionDecel = 38.0;
+
+        if (currentLie === 'Green') {
+          const slopePull = hole.slope.mag * 3.2;
+          b.vx += Math.cos(hole.slope.dir) * slopePull * dt;
+          b.vy += Math.sin(hole.slope.dir) * slopePull * dt;
+        }
+
+        const currentSpeed = Math.hypot(b.vx, b.vy);
+        const newSpeed = Math.max(0, currentSpeed - frictionDecel * dt);
+
+        if (currentSpeed > 0.001) {
+          b.vx = (b.vx / currentSpeed) * newSpeed;
+          b.vy = (b.vy / currentSpeed) * newSpeed;
+        }
+
+        b.x += b.vx * dt;
+        b.y += b.vy * dt;
+
+        const distToPin = Math.hypot(b.x - hole.pin.x, b.y - hole.pin.y);
+        if (distToPin < 1.35) {
+          if (currentSpeed < 8.0) {
+            b.inCup = true;
+            b.x = hole.pin.x;
+            b.y = hole.pin.y;
+            b.vx = 0;
+            b.vy = 0;
+            b.isRolling = false;
+            audio.playCupDrop();
+            onBallHoled(p);
+            return;
+          } else if (!b.hasLipped) {
+            b.hasLipped = true;
+            const deflectAngle = Math.atan2(b.y - hole.pin.y, b.x - hole.pin.x) + (Math.random() > 0.5 ? 0.6 : -0.6);
+            const defSpeed = currentSpeed * 0.65;
+            b.vx = Math.cos(deflectAngle) * defSpeed;
+            b.vy = Math.sin(deflectAngle) * defSpeed;
+            showToastBanner("LIPPED OUT!", "text-amber-400 border-amber-400");
+          }
+        } else {
+          b.hasLipped = false;
+        }
+
+        if (newSpeed <= 0.08) {
+          b.vx = 0;
+          b.vy = 0;
+          b.isRolling = false;
+          onShotFinished();
+        }
+      }
+
+      updateCamera();
+    }
+
+    function updateSwingMeterLogic() {
+      const s = state.swing;
+      const speed = s.speedMultiplier * (dt * 1.5);
+
+      if (s.state === 'POWER') {
+        s.powerProgress += s.powerDir * speed;
+        if (s.powerProgress >= 1.0) {
+          s.powerProgress = 1.0;
+          s.powerDir = -1;
+        } else if (s.powerProgress <= 0.0) {
+          s.powerProgress = 0.0;
+          s.powerDir = 1;
+        }
+      } else if (s.state === 'SNAP') {
+        s.snapProgress -= speed * 1.15;
+        if (s.snapProgress <= 0.0) {
+          s.snapProgress = 0.0;
+          s.state = 'EXECUTING';
+          evaluateAndExecuteShot();
+        }
+      }
+    }
+
+    function handleWaterHazard() {
+      const p = getActivePlayer();
+      const b = p.ball;
+      state.isResetting = true;
+      b.inFlight = false;
+      b.isRolling = false;
+      b.vx = 0;
+      b.vy = 0;
+      b.z = 0;
+      p.shotCount += 1;
+
+      showToastBanner(`${p.name}: WATER HAZARD! (+1 Stroke)`, "text-cyan-300 border-cyan-400");
+
+      setTimeout(() => {
+        b.x = b.lastGoodLie.x;
+        b.y = b.lastGoodLie.y;
+        b.lie = checkLie(b.x, b.y);
+        state.camera.targetX = b.x;
+        state.camera.targetY = b.y;
+        state.isResetting = false;
+        randomizeSweetSpot();
+        resetSwingMeter();
+        updateUI();
+      }, 1100);
+    }
+
+    function onShotFinished() {
+      const hole = COURSE_HOLES[state.currentHoleIdx];
+      const currentP = getActivePlayer();
+      const b = currentP.ball;
+      b.lie = checkLie(b.x, b.y);
+
+      if (b.lie === 'OB') {
+        showToastBanner(`${currentP.name}: OUT OF BOUNDS! (+1 Stroke)`, "text-red-400 border-red-500");
+        currentP.shotCount += 1;
+        b.x = b.lastGoodLie.x;
+        b.y = b.lastGoodLie.y;
+        b.lie = checkLie(b.x, b.y);
+      } else {
+        currentP.shotCount += 1;
+      }
+
+      const dx = hole.pin.x - b.x;
+      const dy = hole.pin.y - b.y;
+      currentP.aimAngle = Math.atan2(dy, dx);
+
+      switchTurnIfNeeded();
+    }
+
+    function onBallHoled(player) {
+      player.scores[state.currentHoleIdx] = player.shotCount;
+      const hole = COURSE_HOLES[state.currentHoleIdx];
+      showToastBanner(`${player.name} HOLED OUT in ${player.shotCount}!`, "text-amber-300 border-amber-400");
+
+      if (state.gameMode === '2P') {
+        const otherP = state.players[player.id === 0 ? 1 : 0];
+        if (!otherP.ball.inCup) {
+          setTimeout(() => {
+            state.activePlayerIdx = otherP.id;
+            const b = otherP.ball;
+            const dx = hole.pin.x - b.x;
+            const dy = hole.pin.y - b.y;
+            otherP.aimAngle = Math.atan2(dy, dx);
+            autoSelectBestClub();
+            randomizeSweetSpot();
+            resetSwingMeter();
+            updateUI();
+            showToastBanner(`${otherP.name}'s Turn to Putt!`, "text-sky-300 border-sky-400");
+          }, 1200);
+          return;
+        }
+      }
+
+      setTimeout(onHoleComplete, 1000);
+    }
+
+    function switchTurnIfNeeded() {
+      const hole = COURSE_HOLES[state.currentHoleIdx];
+
+      if (state.gameMode === '2P') {
+        const p1 = state.players[0];
+        const p2 = state.players[1];
+
+        if (p1.ball.inCup && !p2.ball.inCup) {
+          state.activePlayerIdx = 1;
+        } else if (p2.ball.inCup && !p1.ball.inCup) {
+          state.activePlayerIdx = 0;
+        } else if (!p1.ball.inCup && !p2.ball.inCup) {
+          const d1 = Math.hypot(hole.pin.x - p1.ball.x, hole.pin.y - p1.ball.y);
+          const d2 = Math.hypot(hole.pin.x - p2.ball.x, hole.pin.y - p2.ball.y);
+          state.activePlayerIdx = d1 >= d2 ? 0 : 1;
+        }
+      }
+
+      const nextP = getActivePlayer();
+      const b = nextP.ball;
+      const dx = hole.pin.x - b.x;
+      const dy = hole.pin.y - b.y;
+      nextP.aimAngle = Math.atan2(dy, dx);
+
+      autoSelectBestClub();
+      randomizeSweetSpot();
+      resetSwingMeter();
+      updateUI();
+    }
+
+    function onHoleComplete() {
+      const hole = COURSE_HOLES[state.currentHoleIdx];
+      const p1 = state.players[0];
+      const p2 = state.players[1];
+
+      document.getElementById('holeCompleteTitle').innerText = `Hole ${hole.num} Complete`;
+
+      if (state.gameMode === '1P') {
+        document.getElementById('singlePlayerStatsContainer').classList.remove('hidden');
+        document.getElementById('twoPlayerStatsContainer').classList.add('hidden');
+
+        const strokes = p1.scores[state.currentHoleIdx];
+        const info = getScoreDescription(strokes, hole.par);
+
+        document.getElementById('holeScoreBanner').className = `inline-block px-5 py-1.5 rounded-full text-xs font-black uppercase tracking-widest ${info.bannerBg} mb-3`;
+        document.getElementById('holeScoreBanner').innerText = info.name;
+        document.getElementById('holeCompleteSubtitle').innerText = `${strokes} Strokes (Par ${hole.par})`;
+        document.getElementById('modalHoleStrokes').innerText = strokes;
+        document.getElementById('modalHolePar').innerText = hole.par;
+        document.getElementById('modalTotalScore').innerText = formatToPar(calculateToPar(0));
+      } else {
+        document.getElementById('singlePlayerStatsContainer').classList.add('hidden');
+        document.getElementById('twoPlayerStatsContainer').classList.remove('hidden');
+
+        const s1 = p1.scores[state.currentHoleIdx];
+        const s2 = p2.scores[state.currentHoleIdx];
+
+        let bannerText = "Hole Tied!";
+        let bannerBg = "bg-white text-emerald-950";
+        if (s1 < s2) {
+          bannerText = "Player 1 Wins Hole! 🏆";
+          bannerBg = "bg-sky-400 text-emerald-950";
+        } else if (s2 < s1) {
+          bannerText = "Player 2 Wins Hole! 🏆";
+          bannerBg = "bg-amber-400 text-emerald-950";
+        }
+
+        document.getElementById('holeScoreBanner').className = `inline-block px-5 py-1.5 rounded-full text-xs font-black uppercase tracking-widest ${bannerBg} mb-3`;
+        document.getElementById('holeScoreBanner').innerText = bannerText;
+        document.getElementById('holeCompleteSubtitle').innerText = `P1: ${s1} | P2: ${s2} (Par ${hole.par})`;
+
+        document.getElementById('modalP1Strokes').innerText = s1;
+        document.getElementById('modalP1ToPar').innerText = `Total: ${formatToPar(calculateToPar(0))}`;
+        document.getElementById('modalP2Strokes').innerText = s2;
+        document.getElementById('modalP2ToPar').innerText = `Total: ${formatToPar(calculateToPar(1))}`;
+      }
+
+      updateScorecardTable();
+      setTimeout(() => {
+        holeCompleteModal.classList.remove('hidden');
+      }, 700);
+    }
+
+    function getScoreDescription(strokes, par) {
+      const diff = strokes - par;
+      if (strokes === 1) return { name: "HOLE IN ONE! 🌟", bannerBg: "bg-yellow-400 text-emerald-950" };
+      if (diff <= -2) return { name: "Eagle! 🦅", bannerBg: "bg-yellow-400 text-emerald-950" };
+      if (diff === -1) return { name: "Birdie! 🐦", bannerBg: "bg-emerald-400 text-emerald-950" };
+      if (diff === 0) return { name: "Par", bannerBg: "bg-white text-emerald-950" };
+      if (diff === 1) return { name: "Bogey", bannerBg: "bg-orange-500 text-white" };
+      return { name: `Double Bogey+ (+${diff})`, bannerBg: "bg-red-600 text-white" };
+    }
+
+    function updateCamera() {
+      const p = getActivePlayer();
+      const b = p.ball;
+      const hole = COURSE_HOLES[state.currentHoleIdx];
+
+      if (state.camera.mode === 'follow') {
+        if (b.inFlight) {
+          state.camera.targetX = b.x + b.vx * 0.3;
+          state.camera.targetY = b.y + b.vy * 0.3;
+          state.camera.targetZoom = Math.max(0.75, 1.15 - (b.z / 32));
+        } else if (b.lie === 'Green') {
+          state.camera.targetX = hole.pin.x;
+          state.camera.targetY = hole.pin.y;
+          state.camera.targetZoom = 1.7;
+        } else {
+          const club = CLUBS[p.selectedClubIdx];
+          const aimLead = Math.min(club.baseDist * 0.35, 90);
+          state.camera.targetX = b.x + Math.cos(p.aimAngle) * aimLead;
+          state.camera.targetY = b.y + Math.sin(p.aimAngle) * aimLead;
+          state.camera.targetZoom = 1.1;
+        }
+      } else if (state.camera.mode === 'flyover') {
+        state.camera.targetX = (b.x + hole.pin.x) / 2;
+        state.camera.targetY = (b.y + hole.pin.y) / 2;
+        state.camera.targetZoom = 0.52;
+      }
+
+      state.camera.x += (state.camera.targetX - state.camera.x) * 0.08;
+      state.camera.y += (state.camera.targetY - state.camera.y) * 0.08;
+      state.camera.zoom += (state.camera.targetZoom - state.camera.zoom) * 0.06;
+    }
+
+    function render() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const hole = COURSE_HOLES[state.currentHoleIdx];
+      const cam = state.camera;
+      const activeP = getActivePlayer();
+
+      ctx.save();
+      ctx.translate(canvas.width / 2, canvas.height / 2);
+      ctx.scale(cam.zoom, cam.zoom);
+      ctx.translate(-cam.x, -cam.y);
+
+      // Rough course base
+      ctx.fillStyle = '#1b4327';
+      ctx.fillRect(cam.x - 1200, cam.y - 1200, 2400, 2400);
+
+      // Striped grass patterns
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.035)';
+      const step = 22;
+      const startX = Math.floor((cam.x - 1000) / step) * step;
+      const startY = Math.floor((cam.y - 1000) / step) * step;
+      for (let x = startX; x < startX + 2000; x += step * 2) {
+        ctx.fillRect(x, startY, step, 2000);
+      }
+
+      // Fairways
+      ctx.save();
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      for (const seg of hole.fairwaySegments) {
+        ctx.strokeStyle = '#2b6539';
+        ctx.lineWidth = seg.width + 10;
+        ctx.beginPath();
+        ctx.moveTo(seg.x1, seg.y1);
+        ctx.lineTo(seg.x2, seg.y2);
+        ctx.stroke();
+
+        ctx.strokeStyle = '#38834c';
+        ctx.lineWidth = seg.width;
+        ctx.beginPath();
+        ctx.moveTo(seg.x1, seg.y1);
+        ctx.lineTo(seg.x2, seg.y2);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // Water Hazards
+      const t = Date.now() * 0.002;
+      for (const w of hole.water) {
+        ctx.fillStyle = '#234e36';
+        ctx.beginPath();
+        ctx.ellipse(w.x, w.y, w.rx + 5, w.ry + 5, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        const grad = ctx.createRadialGradient(w.x, w.y, 4, w.x, w.y, Math.max(w.rx, w.ry));
+        grad.addColorStop(0, '#1d7396');
+        grad.addColorStop(1, '#0b394e');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.ellipse(w.x, w.y, w.rx, w.ry, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.ellipse(w.x + Math.sin(t) * 3, w.y, w.rx * 0.6, w.ry * 0.6, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      // Sand Bunkers
+      for (const b of hole.bunkers) {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.22)';
+        ctx.beginPath();
+        ctx.ellipse(b.x + 3, b.y + 3, b.rx, b.ry, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#dfc896';
+        ctx.beginPath();
+        ctx.ellipse(b.x, b.y, b.rx, b.ry, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = '#b69a65';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      // Putting Green & Beads
+      const g = hole.green;
+      ctx.fillStyle = '#2f7440';
+      ctx.beginPath();
+      ctx.arc(g.x, g.y, g.r + 3.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#4ade80';
+      ctx.beginPath();
+      ctx.arc(g.x, g.y, g.r, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Cup Hole
+      ctx.fillStyle = '#111827';
+      ctx.beginPath();
+      ctx.arc(hole.pin.x, hole.pin.y, 1.4, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Slope Contour Grid Beads
+      const beadNow = Date.now() * 0.003;
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+      for (const dot of state.puttingGridDots) {
+        const offset = ((beadNow + dot.phase) % 1.0) * 3.5;
+        const dx = Math.cos(hole.slope.dir) * offset;
+        const dy = Math.sin(hole.slope.dir) * offset;
+        ctx.beginPath();
+        ctx.arc(dot.x + dx, dot.y + dy, 0.75, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Tee Box Markers
+      ctx.fillStyle = '#317644';
+      ctx.beginPath();
+      ctx.arc(hole.tee.x, hole.tee.y, 9, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#38bdf8';
+      ctx.beginPath();
+      ctx.arc(hole.tee.x - 4, hole.tee.y, 1.2, 0, Math.PI * 2);
+      ctx.arc(hole.tee.x + 4, hole.tee.y, 1.2, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Active Player Aim Guidance
+      const activeBall = activeP.ball;
+      if (!activeBall.inFlight && !activeBall.isRolling && !activeBall.inCup) {
+        const club = CLUBS[activeP.selectedClubIdx];
+        const carry = club.baseDist;
+
+        ctx.strokeStyle = activeP.id === 0 ? 'rgba(56, 189, 248, 0.6)' : 'rgba(251, 191, 36, 0.6)';
+        ctx.setLineDash([5, 5]);
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.moveTo(activeBall.x, activeBall.y);
+        const targetX = activeBall.x + Math.cos(activeP.aimAngle) * carry;
+        const targetY = activeBall.y + Math.sin(activeP.aimAngle) * carry;
+        ctx.lineTo(targetX, targetY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.strokeStyle = activeP.id === 0 ? '#38bdf8' : '#fbbf24';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(targetX, targetY, 7, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      // Render balls for all players
+      const numPlayers = state.gameMode === '2P' ? 2 : 1;
+      for (let i = 0; i < numPlayers; i++) {
+        const p = state.players[i];
+        const b = p.ball;
+
+        if (b.trail.length > 1) {
+          ctx.strokeStyle = i === 0 ? 'rgba(255, 255, 255, 0.7)' : 'rgba(251, 191, 36, 0.7)';
+          ctx.lineWidth = 1.8;
+          ctx.beginPath();
+          for (let k = 0; k < b.trail.length; k++) {
+            const pt = b.trail[k];
+            if (k === 0) ctx.moveTo(pt.x, pt.y - pt.z * 0.7);
+            else ctx.lineTo(pt.x, pt.y - pt.z * 0.7);
+          }
+          ctx.stroke();
+        }
+
+        const shadowScale = Math.max(0.4, 1.0 - (b.z / 32));
+        ctx.fillStyle = `rgba(0, 0, 0, ${0.45 * shadowScale})`;
+        ctx.beginPath();
+        ctx.ellipse(b.x, b.y, 2.2 * shadowScale, 1.4 * shadowScale, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        if (!b.inCup) {
+          const renderY = b.y - (b.z * 0.7);
+          const ballSize = Math.max(1.8, 2.0 + (b.z * 0.08));
+
+          ctx.fillStyle = p.color;
+          ctx.beginPath();
+          ctx.arc(b.x, renderY, ballSize, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+          ctx.beginPath();
+          ctx.arc(b.x - ballSize * 0.3, renderY - ballSize * 0.3, ballSize * 0.35, 0, Math.PI * 2);
+          ctx.fill();
+
+          if (state.gameMode === '2P' && !b.inFlight && !b.isRolling) {
+            ctx.fillStyle = p.id === 0 ? '#0284c7' : '#d97706';
+            ctx.beginPath();
+            ctx.roundRect(b.x - 7, renderY - 14, 14, 8, 3);
+            ctx.fill();
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 6px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(p.id === 0 ? 'P1' : 'P2', b.x, renderY - 8);
+          }
+        }
+      }
+
+      // Flagstick
+      const px = hole.pin.x;
+      const py = hole.pin.y;
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+      ctx.beginPath();
+      ctx.ellipse(px + 4, py + 2, 5, 2, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(px, py);
+      ctx.lineTo(px, py - 24);
+      ctx.stroke();
+
+      const wave = Math.sin(Date.now() * 0.005) * 3;
+      ctx.fillStyle = '#ef4444';
+      ctx.beginPath();
+      ctx.moveTo(px, py - 24);
+      ctx.lineTo(px + 12 + wave, py - 19);
+      ctx.lineTo(px, py - 14);
+      ctx.closePath();
+      ctx.fill();
+
+      // Trees
+      for (const tr of hole.trees) {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.28)';
+        ctx.beginPath();
+        ctx.ellipse(tr.x + 6, tr.y + 8, tr.r * 1.05, tr.r * 0.8, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#422812';
+        ctx.beginPath();
+        ctx.arc(tr.x, tr.y, 3.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        const grad = ctx.createRadialGradient(tr.x - 4, tr.y - 6, 2, tr.x, tr.y, tr.r);
+        grad.addColorStop(0, '#27703e');
+        grad.addColorStop(0.7, '#184727');
+        grad.addColorStop(1, '#0d2715');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(tr.x, tr.y, tr.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Render Clubhouse, Practice Green & Driving Range properly positioned to the right of Hole 1
+      // 1. Clubhouse
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(1050, 670, 75, 140);
+      ctx.strokeStyle = '#475569';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(1050, 670, 75, 140);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 10px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('CLUB', 1087, 735);
+      ctx.fillText('HOUSE', 1087, 748);
+
+      // 2. Practice Putting Green (directly south of Clubhouse)
+      ctx.fillStyle = '#34d399';
+      ctx.beginPath();
+      ctx.ellipse(1100, 845, 24, 15, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '7px sans-serif';
+      ctx.fillText('PUTTING', 1100, 843);
+      ctx.fillText('GREEN', 1100, 852);
+
+      // 3. Driving Range (situated south of putting green, outside Hole 1 corridor)
+      ctx.fillStyle = '#1f4d30';
+      ctx.beginPath();
+      ctx.roundRect(980, 900, 85, 45, 8);
+      ctx.fill();
+      ctx.strokeStyle = '#34d399';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.fillStyle = '#a7f3d0';
+      ctx.font = 'bold 8px sans-serif';
+      ctx.fillText('DRIVING RANGE', 1022, 926);
+
+      ctx.restore();
+
+      drawMinimap(hole);
+      renderSwingMeter();
+
+      requestAnimationFrame(render);
+    }
+
+    function drawMinimap(hole) {
+      const mapW = 100;
+      const mapH = 150;
+      const padding = 16;
+      const x0 = canvas.width - mapW - padding;
+      const y0 = canvas.height - mapH - 95;
+
+      ctx.save();
+      ctx.fillStyle = 'rgba(6, 44, 25, 0.85)';
+      ctx.strokeStyle = 'rgba(52, 211, 153, 0.35)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.roundRect(x0, y0, mapW, mapH, 12);
+      ctx.fill();
+      ctx.stroke();
+
+      const minY = Math.min(hole.green.y, hole.tee.y) - 35;
+      const maxY = Math.max(hole.green.y, hole.tee.y) + 35;
+      const minX = Math.min(hole.green.x, hole.tee.x) - 65;
+      const maxX = Math.max(hole.green.x, hole.tee.x) + 65;
+
+      function toMap(wx, wy) {
+        const mx = x0 + 10 + ((wx - minX) / (maxX - minX)) * (mapW - 20);
+        const my = y0 + 10 + ((wy - minY) / (maxY - minY)) * (mapH - 20);
+        return { x: mx, y: my };
+      }
+
+      ctx.strokeStyle = '#38834c';
+      ctx.lineWidth = 6;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      for (const seg of hole.fairwaySegments) {
+        const p1 = toMap(seg.x1, seg.y1);
+        const p2 = toMap(seg.x2, seg.y2);
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(p2.x, p2.y);
+      }
+      ctx.stroke();
+
+      ctx.fillStyle = '#38bdf8';
+      for (const w of hole.water) {
+        const mw = toMap(w.x, w.y);
+        ctx.beginPath();
+        ctx.arc(mw.x, mw.y, 4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      const mg = toMap(hole.green.x, hole.green.y);
+      ctx.fillStyle = '#4ade80';
+      ctx.beginPath();
+      ctx.arc(mg.x, mg.y, 5, 0, Math.PI * 2);
+      ctx.fill();
+
+      const mp = toMap(hole.pin.x, hole.pin.y);
+      ctx.fillStyle = '#ef4444';
+      ctx.beginPath();
+      ctx.arc(mp.x, mp.y, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      const count = state.gameMode === '2P' ? 2 : 1;
+      for (let i = 0; i < count; i++) {
+        const p = state.players[i];
+        const mb = toMap(p.ball.x, p.ball.y);
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(mb.x, mb.y, 3.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = i === 0 ? '#0284c7' : '#d97706';
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+      }
+
+      ctx.restore();
+    }
+
+    function renderSwingMeter() {
+      const w = meterCanvas.width;
+      const h = meterCanvas.height;
+      meterCtx.clearRect(0, 0, w, h);
+
+      const s = state.swing;
+
+      meterCtx.fillStyle = '#064e3b';
+      meterCtx.fillRect(0, 0, w, h);
+
+      const pGrad = meterCtx.createLinearGradient(0, 0, w, 0);
+      pGrad.addColorStop(0, '#10b981');
+      pGrad.addColorStop(0.7, '#f59e0b');
+      pGrad.addColorStop(1, '#ef4444');
+      meterCtx.fillStyle = pGrad;
+      meterCtx.fillRect(0, 0, w, h);
+
+      // Dynamic Sweet Spot notch
+      const spotCenter = w * s.sweetSpotLocation;
+      const spotW = w * s.sweetSpotWidth;
+      meterCtx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+      meterCtx.fillRect(spotCenter - spotW / 2, 0, spotW, h);
+
+      meterCtx.strokeStyle = '#ffffff';
+      meterCtx.lineWidth = 3;
+      meterCtx.beginPath();
+      meterCtx.moveTo(spotCenter, 0);
+      meterCtx.lineTo(spotCenter, h);
+      meterCtx.stroke();
+
+      meterCtx.fillStyle = '#ffffff';
+      meterCtx.font = 'bold 9px sans-serif';
+      meterCtx.textAlign = 'center';
+      meterCtx.fillText('SWEET', spotCenter, 10);
+
+      if (s.state === 'POWER') {
+        const needleX = s.powerProgress * w;
+        meterCtx.fillStyle = '#facc15';
+        meterCtx.fillRect(needleX - 3, 0, 6, h);
+      } else if (s.state === 'SNAP') {
+        const needleX = s.snapProgress * w;
+        meterCtx.fillStyle = '#ffffff';
+        meterCtx.fillRect(needleX - 3, 0, 6, h);
+        meterCtx.strokeStyle = '#000000';
+        meterCtx.strokeRect(needleX - 3, 0, 6, h);
+      } else if (s.state === 'EXECUTING') {
+        const needleX = s.snapProgress * w;
+        meterCtx.fillStyle = '#38bdf8';
+        meterCtx.fillRect(needleX - 3, 0, 6, h);
+      }
+    }
+
+    function updateUI() {
+      const hole = COURSE_HOLES[state.currentHoleIdx];
+      const p = getActivePlayer();
+      const b = p.ball;
+      const distToPin = Math.round(Math.hypot(hole.pin.x - b.x, hole.pin.y - b.y));
+
+      if (state.gameMode === '2P') {
+        uiPlayerIndicator.classList.remove('hidden');
+        uiCurrentPlayerBadge.innerText = p.id === 0 ? 'P1: Player 1' : 'P2: Player 2';
+        uiCurrentPlayerBadge.className = `text-xs sm:text-sm font-black px-2.5 py-0.5 rounded-lg text-white inline-block shadow ${p.id === 0 ? 'bg-sky-600' : 'bg-amber-500'}`;
+      } else {
+        uiPlayerIndicator.classList.add('hidden');
+      }
+
+      uiHoleNum.innerText = hole.num;
+      uiHolePar.innerText = hole.par;
+      uiPinDist.innerHTML = `${distToPin} <span class="text-xs font-normal">yds</span>`;
+      uiShotNum.innerText = p.shotCount;
+      uiLieText.innerText = b.lie;
+
+      uiWindArrow.style.transform = `rotate(${state.wind.angle * (180 / Math.PI) + 90}deg)`;
+      uiWindSpeed.innerText = `${state.wind.speed} mph`;
+
+      const club = CLUBS[p.selectedClubIdx];
+      uiClubName.innerText = club.name;
+      uiClubDist.innerText = `${club.baseDist} yds`;
+      uiClubLoft.innerText = `${club.loft}°`;
+
+      const deg = Math.round((p.aimAngle * (180 / Math.PI) + 90) % 360);
+      uiAimAngle.innerText = `${deg >= 0 ? deg : 360 + deg}°`;
+
+      const toPar = calculateToPar(p.id);
+      uiTotalScore.innerText = formatToPar(toPar);
+
+      if (state.swing.state === 'READY') {
+        swingPrompt.innerText = state.gameMode === '2P' 
+          ? `${p.name}: Click or Press Space to Swing`
+          : "Click or Press Space to Swing";
+      }
+    }
+
+    function calculateToPar(playerIdx = 0) {
+      let total = 0;
+      const scores = state.players[playerIdx].scores;
+      for (let i = 0; i < 18; i++) {
+        if (scores[i] !== null) {
+          total += (scores[i] - COURSE_HOLES[i].par);
+        }
+      }
+      return total;
+    }
+
+    function formatToPar(diff) {
+      if (diff === 0) return 'E';
+      return diff > 0 ? `+${diff}` : `${diff}`;
+    }
+
+    function updateScorecardTable() {
+      const rowP1 = document.getElementById('scorecardRowScores');
+      populateScoreRow(rowP1, state.players[0], 'P1 Score');
+
+      const rowP2 = document.getElementById('scorecardRowScoresP2');
+      if (state.gameMode === '2P') {
+        rowP2.classList.remove('hidden');
+        populateScoreRow(rowP2, state.players[1], 'P2 Score');
+      } else {
+        rowP2.classList.add('hidden');
+      }
+    }
+
+    function populateScoreRow(rowElement, player, label) {
+      rowElement.innerHTML = `<td class="p-2 font-bold text-left ${player.id === 0 ? 'text-white' : 'text-amber-300'}">${label}</td>`;
+
+      let outTotal = 0;
+      let inTotal = 0;
+
+      for (let i = 0; i < 9; i++) {
+        const sc = player.scores[i];
+        const par = COURSE_HOLES[i].par;
+        const cell = document.createElement('td');
+        cell.className = 'p-2 font-bold';
+        if (sc !== null) {
+          outTotal += sc;
+          cell.innerHTML = formatScoreBadge(sc, par);
+        } else {
+          cell.innerText = '-';
+        }
+        rowElement.appendChild(cell);
+      }
+
+      const outCell = document.createElement('td');
+      outCell.className = 'p-2 bg-emerald-950/80 font-bold text-amber-300';
+      outCell.innerText = outTotal > 0 ? outTotal : '-';
+      rowElement.appendChild(outCell);
+
+      for (let i = 9; i < 18; i++) {
+        const sc = player.scores[i];
+        const par = COURSE_HOLES[i].par;
+        const cell = document.createElement('td');
+        cell.className = 'p-2 font-bold';
+        if (sc !== null) {
+          inTotal += sc;
+          cell.innerHTML = formatScoreBadge(sc, par);
+        } else {
+          cell.innerText = '-';
+        }
+        rowElement.appendChild(cell);
+      }
+
+      const inCell = document.createElement('td');
+      inCell.className = 'p-2 bg-emerald-950/80 font-bold text-amber-300';
+      inCell.innerText = inTotal > 0 ? inTotal : '-';
+      rowElement.appendChild(inCell);
+
+      const totCell = document.createElement('td');
+      totCell.className = 'p-2 bg-emerald-900 font-extrabold text-amber-400';
+      totCell.innerText = (outTotal + inTotal) > 0 ? (outTotal + inTotal) : '-';
+      rowElement.appendChild(totCell);
+    }
+
+    function formatScoreBadge(score, par) {
+      const diff = score - par;
+      if (diff <= -2) return `<span class="inline-block w-6 h-6 rounded-full bg-yellow-400 text-emerald-950 leading-6">${score}</span>`;
+      if (diff === -1) return `<span class="inline-block w-6 h-6 rounded-full bg-emerald-400 text-emerald-950 leading-6">${score}</span>`;
+      if (diff === 0) return `<span class="inline-block w-6 h-6 rounded-full bg-white text-emerald-950 leading-6">${score}</span>`;
+      if (diff === 1) return `<span class="inline-block w-6 h-6 rounded-full bg-orange-500 text-white leading-6">${score}</span>`;
+      return `<span class="inline-block w-6 h-6 rounded bg-red-600 text-white leading-6">${score}</span>`;
+    }
+
+    window.addEventListener('keydown', (e) => {
+      const p = getActivePlayer();
+      if (e.code === 'Space') {
+        e.preventDefault();
+        handleSwingInput();
+      }
+      if (e.code === 'KeyA' || e.code === 'ArrowLeft') {
+        p.aimAngle -= 0.04;
+        updateUI();
+      }
+      if (e.code === 'KeyD' || e.code === 'ArrowRight') {
+        p.aimAngle += 0.04;
+        updateUI();
+      }
+      if (e.code === 'KeyW' || e.code === 'ArrowUp') {
+        cycleClub(-1);
+      }
+      if (e.code === 'KeyS' || e.code === 'ArrowDown') {
+        cycleClub(1);
+      }
+      if (e.key >= '1' && e.key <= '9') {
+        const idx = parseInt(e.key) - 1;
+        if (idx < CLUBS.length) {
+          p.selectedClubIdx = idx;
+          updateUI();
+        }
+      }
+      if (e.code === 'Tab') {
+        e.preventDefault();
+        scorecardModal.classList.toggle('hidden');
+      }
+      if (e.code === 'KeyM') {
+        e.preventDefault();
+        toggleCourseMap();
+      }
+      if (e.code === 'KeyC') {
+        toggleCamera();
+      }
+    });
+
+    // Course Map Modal Handling
+    function toggleCourseMap() {
+      const isHidden = courseMapModal.classList.toggle('hidden');
+      if (!isHidden) {
+        renderFullCourseOverview();
+      }
+    }
+    document.getElementById('btnCourseMap').addEventListener('click', toggleCourseMap);
+    document.getElementById('btnCloseCourseMap').addEventListener('click', () => {
+      courseMapModal.classList.add('hidden');
+    });
+
+    function renderFullCourseOverview() {
+      overviewCanvas.width = overviewCanvas.parentElement.clientWidth;
+      overviewCanvas.height = overviewCanvas.parentElement.clientHeight;
+      const oCtx = overviewCtx;
+      const w = overviewCanvas.width;
+      const h = overviewCanvas.height;
+
+      oCtx.fillStyle = '#0b1d13';
+      oCtx.fillRect(0, 0, w, h);
+
+      // Master course bounds
+      const minX = 20, maxX = 1420;
+      const minY = 30, maxY = 1040;
+
+      function toMap(x, y) {
+        const padding = 35;
+        const scaleX = (w - padding * 2) / (maxX - minX);
+        const scaleY = (h - padding * 2) / (maxY - minY);
+        const scale = Math.min(scaleX, scaleY);
+        const offsetX = (w - (maxX - minX) * scale) / 2;
+        const offsetY = (h - (maxY - minY) * scale) / 2;
+        return {
+          x: offsetX + (x - minX) * scale,
+          y: offsetY + (y - minY) * scale,
+          scale: scale
+        };
+      }
+
+      // Draw all 18 fairways & hazards on master overview
+      COURSE_HOLES.forEach((hole, idx) => {
+        const isActive = idx === state.currentHoleIdx;
+        oCtx.strokeStyle = isActive ? '#4ade80' : '#2b6539';
+        oCtx.lineWidth = Math.max(3, 14 * toMap(0, 0).scale);
+        oCtx.lineCap = 'round';
+        oCtx.beginPath();
+        for (const seg of hole.fairwaySegments) {
+          const p1 = toMap(seg.x1, seg.y1);
+          const p2 = toMap(seg.x2, seg.y2);
+          oCtx.moveTo(p1.x, p1.y);
+          oCtx.lineTo(p2.x, p2.y);
+        }
+        oCtx.stroke();
+
+        // Water Hazards
+        for (const wt of hole.water) {
+          const p = toMap(wt.x, wt.y);
+          oCtx.fillStyle = '#0284c7';
+          oCtx.beginPath();
+          oCtx.ellipse(p.x, p.y, Math.max(3, wt.rx * p.scale), Math.max(3, wt.ry * p.scale), 0, 0, Math.PI * 2);
+          oCtx.fill();
+        }
+
+        // Green
+        const pg = toMap(hole.green.x, hole.green.y);
+        oCtx.fillStyle = isActive ? '#22c55e' : '#15803d';
+        oCtx.beginPath();
+        oCtx.arc(pg.x, pg.y, Math.max(3, hole.green.r * pg.scale), 0, Math.PI * 2);
+        oCtx.fill();
+
+        // Pin
+        const pp = toMap(hole.pin.x, hole.pin.y);
+        oCtx.fillStyle = '#ef4444';
+        oCtx.beginPath();
+        oCtx.arc(pp.x, pp.y, 2.5, 0, Math.PI * 2);
+        oCtx.fill();
+
+        // Hole Number Badge
+        oCtx.fillStyle = isActive ? '#facc15' : 'rgba(255, 255, 255, 0.85)';
+        oCtx.font = `bold ${Math.max(8, Math.round(11 * pg.scale))}px sans-serif`;
+        oCtx.textAlign = 'center';
+        oCtx.fillText(`${hole.num}`, pp.x, pp.y - 6);
+      });
+
+      // Clubhouse & facilities on map
+      const pch = toMap(1087, 740);
+      oCtx.fillStyle = '#475569';
+      oCtx.fillRect(pch.x - 12, pch.y - 18, 24, 36);
+      oCtx.fillStyle = '#ffffff';
+      oCtx.font = 'bold 7px sans-serif';
+      oCtx.fillText('CLUB', pch.x, pch.y - 2);
+
+      const pdr = toMap(1022, 922);
+      oCtx.fillStyle = '#047857';
+      oCtx.fillRect(pdr.x - 14, pdr.y - 8, 28, 16);
+      oCtx.fillStyle = '#6ee7b7';
+      oCtx.font = '6px sans-serif';
+      oCtx.fillText('RANGE', pdr.x, pdr.y + 3);
+
+      // Active Ball Pulsing Indicator
+      const curP = getActivePlayer();
+      const pBall = toMap(curP.ball.x, curP.ball.y);
+      oCtx.fillStyle = '#ffffff';
+      oCtx.beginPath();
+      oCtx.arc(pBall.x, pBall.y, 5, 0, Math.PI * 2);
+      oCtx.fill();
+      oCtx.strokeStyle = '#38bdf8';
+      oCtx.lineWidth = 2;
+      oCtx.stroke();
+    }
+
+    document.getElementById('swingMeterBox').addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      handleSwingInput();
+    });
+
+    document.getElementById('btnAimLeft').addEventListener('click', () => {
+      const p = getActivePlayer();
+      p.aimAngle -= 0.05;
+      updateUI();
+    });
+    document.getElementById('btnAimRight').addEventListener('click', () => {
+      const p = getActivePlayer();
+      p.aimAngle += 0.05;
+      updateUI();
+    });
+
+    function cycleClub(direction) {
+      audio.init();
+      audio.playClick();
+      const p = getActivePlayer();
+      p.selectedClubIdx += direction;
+      if (p.selectedClubIdx < 0) p.selectedClubIdx = CLUBS.length - 1;
+      if (p.selectedClubIdx >= CLUBS.length) p.selectedClubIdx = 0;
+      updateUI();
+    }
+    document.getElementById('btnClubPrev').addEventListener('click', () => cycleClub(-1));
+    document.getElementById('btnClubNext').addEventListener('click', () => cycleClub(1));
+
+    function toggleCamera() {
+      state.camera.mode = state.camera.mode === 'follow' ? 'flyover' : 'follow';
+      document.getElementById('btnToggleCam').classList.toggle('bg-emerald-700');
+    }
+    document.getElementById('btnToggleCam').addEventListener('click', toggleCamera);
+
+    document.getElementById('btnScorecard').addEventListener('click', () => {
+      updateScorecardTable();
+      scorecardModal.classList.remove('hidden');
+    });
+    document.getElementById('btnCloseScorecard').addEventListener('click', () => {
+      scorecardModal.classList.add('hidden');
+    });
+    document.getElementById('btnViewCardFromModal').addEventListener('click', () => {
+      updateScorecardTable();
+      scorecardModal.classList.remove('hidden');
+    });
+
+    document.getElementById('btnNextHole').addEventListener('click', () => {
+      holeCompleteModal.classList.add('hidden');
+      if (state.currentHoleIdx < 17) {
+        initHole(state.currentHoleIdx + 1);
+      } else {
+        showFinalResultsScreen();
+      }
+    });
+
+    function showFinalResultsScreen() {
+      if (state.gameMode === '1P') {
+        document.getElementById('finalP1Container').classList.remove('hidden');
+        document.getElementById('final2PContainer').classList.add('hidden');
+
+        let totalStrokes = 0;
+        let eagles = 0;
+        let birdies = 0;
+        let pars = 0;
+        let bogeys = 0;
+
+        for (let i = 0; i < 18; i++) {
+          const sc = state.players[0].scores[i] || COURSE_HOLES[i].par;
+          totalStrokes += sc;
+          const diff = sc - COURSE_HOLES[i].par;
+          if (diff <= -2) eagles++;
+          else if (diff === -1) birdies++;
+          else if (diff === 0) pars++;
+          else bogeys++;
+        }
+
+        const toPar = totalStrokes - 72;
+        document.getElementById('finalTotalScore').innerText = totalStrokes;
+        document.getElementById('finalToPar').innerText = `${formatToPar(toPar)} (${Math.abs(toPar)} ${toPar <= 0 ? 'Under' : 'Over'} Par)`;
+        document.getElementById('finalEagles').innerText = eagles;
+        document.getElementById('finalBirdies').innerText = birdies;
+        document.getElementById('finalPars').innerText = pars;
+        document.getElementById('finalBogeys').innerText = bogeys;
+
+        let title = "Weekend Hacker";
+        if (toPar <= -6) title = "Grand Tour Legend 🌟";
+        else if (toPar <= -2) title = "Scratch Golfer 🥇";
+        else if (toPar <= 3) title = "Single Digit Handicap 🥈";
+        else if (toPar <= 10) title = "Club Champion Contender 🥉";
+        document.getElementById('finalRatingBadge').innerText = title;
+      } else {
+        document.getElementById('finalP1Container').classList.add('hidden');
+        document.getElementById('final2PContainer').classList.remove('hidden');
+
+        let totP1 = 0;
+        let totP2 = 0;
+        for (let i = 0; i < 18; i++) {
+          totP1 += (state.players[0].scores[i] || COURSE_HOLES[i].par);
+          totP2 += (state.players[1].scores[i] || COURSE_HOLES[i].par);
+        }
+
+        const toPar1 = totP1 - 72;
+        const toPar2 = totP2 - 72;
+
+        document.getElementById('finalP1Strokes').innerText = totP1;
+        document.getElementById('finalP1ToPar').innerText = formatToPar(toPar1);
+        document.getElementById('finalP2Strokes').innerText = totP2;
+        document.getElementById('finalP2ToPar').innerText = formatToPar(toPar2);
+
+        let banner = "Match Tied!";
+        if (totP1 < totP2) banner = "Player 1 Wins the Championship! 🥇";
+        else if (totP2 < totP1) banner = "Player 2 Wins the Championship! 🥇";
+        document.getElementById('finalWinnerBanner').innerText = banner;
+        document.getElementById('finalRatingBadge').innerText = "Tour Champions";
+      }
+
+      finalResultsModal.classList.remove('hidden');
+    }
+
+    document.getElementById('btnRestartRound').addEventListener('click', () => {
+      finalResultsModal.classList.add('hidden');
+      state.players[0].scores = new Array(18).fill(null);
+      state.players[1].scores = new Array(18).fill(null);
+      welcomeModal.classList.remove('hidden');
+    });
+
+    document.getElementById('btnMute').addEventListener('click', () => {
+      audio.muted = !audio.muted;
+      document.getElementById('muteIcon').innerText = audio.muted ? '🔇' : '🔊';
+    });
+
+    document.getElementById('btnStartGame').addEventListener('click', () => {
+      const modeRadio = document.querySelector('input[name="gameMode"]:checked');
+      if (modeRadio) state.gameMode = modeRadio.value;
+
+      const diffRadio = document.querySelector('input[name="difficulty"]:checked');
+      if (diffRadio) setDifficulty(diffRadio.value);
+
+      state.players[0].scores = new Array(18).fill(null);
+      state.players[1].scores = new Array(18).fill(null);
+
+      welcomeModal.classList.add('hidden');
+      audio.init();
+      initHole(0);
+    });
+
+    // World canvas aim drag & click-to-swing
+    let isAimDragging = false;
+    canvas.addEventListener('pointerdown', (e) => {
+      const b = getActiveBall();
+      if (b.inFlight || b.isRolling || b.inCup || state.isResetting) return;
+      isAimDragging = true;
+      aimAtScreenPoint(e.clientX, e.clientY);
+    });
+    window.addEventListener('pointermove', (e) => {
+      if (isAimDragging) {
+        aimAtScreenPoint(e.clientX, e.clientY);
+      }
+    });
+    window.addEventListener('pointerup', () => {
+      isAimDragging = false;
+    });
+
+    function aimAtScreenPoint(screenX, screenY) {
+      const p = getActivePlayer();
+      const wx = (screenX - canvas.width / 2) / state.camera.zoom + state.camera.x;
+      const wy = (screenY - canvas.height / 2) / state.camera.zoom + state.camera.y;
+      const dx = wx - p.ball.x;
+      const dy = wy - p.ball.y;
+      p.aimAngle = Math.atan2(dy, dx);
+      updateUI();
+    }
+
+    resizeCanvases();
+    randomizeSweetSpot();
+    initHole(0);
+
+    setInterval(updatePhysics, 1000 / 60);
+    requestAnimationFrame(render);
+  </script>
+</body>
+</html>
