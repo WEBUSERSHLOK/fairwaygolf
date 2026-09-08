@@ -3,10 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Fairway Classic - 18-Hole Championship Golf</title>
-  <!-- Tailwind CSS CDN for modern UI components -->
+  <title>Fairway Classic - 18-Hole Championship Golf & Course Architect</title>
+  <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
+    /* Robust Built-In Design System - Guarantees full styling even if external CDNs are restricted */
     * {
       user-select: none;
       -webkit-user-select: none;
@@ -18,8 +19,9 @@
       width: 100%;
       height: 100%;
       overflow: hidden;
-      background-color: #0b1d13;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background-color: #06180e;
+      color: #ffffff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif;
     }
     #gameCanvas {
       display: block;
@@ -32,19 +34,128 @@
       50% { box-shadow: 0 0 25px rgba(52, 211, 153, 0.8); }
     }
     .glow-active {
-      animation: pulseGlow 1.5s infinite;
+      animation: pulseGlow 1.6s infinite;
     }
     .custom-scroll::-webkit-scrollbar {
       width: 6px;
       height: 6px;
     }
     .custom-scroll::-webkit-scrollbar-track {
-      background: rgba(0,0,0,0.2);
+      background: rgba(0,0,0,0.35);
       border-radius: 4px;
     }
     .custom-scroll::-webkit-scrollbar-thumb {
       background: rgba(255,255,255,0.25);
       border-radius: 4px;
+    }
+
+    /* Modal Backdrop & Robust Container Layouts */
+    .modal-backdrop {
+      background-color: rgba(3, 10, 6, 0.88);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+      padding: 12px;
+    }
+    .modal-backdrop.hidden {
+      display: none !important;
+    }
+
+    /* Core Modal Window Defaults (prevents unstyled collapse) */
+    .modal-dialog {
+      background: linear-gradient(180deg, #0f172a 0%, #1e1b4b 60%, #030712 100%);
+      border: 2px solid rgba(99, 102, 241, 0.55);
+      border-radius: 24px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.85);
+      width: 100%;
+      max-width: 1120px;
+      max-height: 95vh;
+      display: flex;
+      flex-direction: column;
+      padding: 16px;
+      color: #ffffff;
+      box-sizing: border-box;
+      overflow: hidden;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #10b981, #06b6d4);
+      color: #022c22;
+      font-weight: 900;
+      padding: 9px 18px;
+      border-radius: 12px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .btn-primary:hover {
+      opacity: 0.95;
+      transform: translateY(-1px);
+    }
+    .btn-primary:active {
+      transform: scale(0.97);
+    }
+
+    .btn-secondary {
+      background: rgba(30, 41, 59, 0.8);
+      color: #cbd5e1;
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      padding: 8px 14px;
+      border-radius: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .btn-secondary:hover {
+      background: rgba(51, 65, 85, 0.9);
+      color: #ffffff;
+    }
+
+    /* Architect Toolbar Button Styles */
+    .tool-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 12px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 700;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(99, 102, 241, 0.35);
+      color: #c7d2fe;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+    .tool-btn:hover {
+      background: rgba(49, 46, 129, 0.9);
+      border-color: #818cf8;
+      color: #ffffff;
+      transform: translateY(-1px);
+    }
+    .tool-btn.active {
+      background: #4f46e5;
+      border-color: #a5b4fc;
+      color: #ffffff;
+      box-shadow: 0 0 12px rgba(99, 102, 241, 0.6);
+    }
+
+    /* Range and Inputs */
+    input[type=range] {
+      accent-color: #6366f1;
+    }
+    select, input[type=text] {
+      background: #0f172a;
+      border: 1px solid rgba(99, 102, 241, 0.4);
+      color: #ffffff;
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-size: 12px;
     }
   </style>
 </head>
@@ -54,114 +165,113 @@
   <canvas id="gameCanvas"></canvas>
 
   <!-- Top Navigation HUD Bar -->
-  <header class="absolute top-0 left-0 right-0 p-3 sm:p-4 flex justify-between items-start pointer-events-none z-20">
-    <!-- Hole, Par, Distance, Shot Counter & Player Badge -->
-    <div class="pointer-events-auto bg-emerald-950/85 backdrop-blur-md border border-emerald-500/40 rounded-2xl p-3 sm:px-5 sm:py-3 shadow-2xl flex items-center gap-3 sm:gap-4 text-sm sm:text-base">
-      <!-- Player Turn / Facility Indicator -->
-      <div id="uiPlayerIndicator" class="border-r border-emerald-700/60 pr-3 sm:pr-4 text-center hidden">
-        <span class="text-[10px] sm:text-xs uppercase tracking-wider text-emerald-300/80 font-bold block">Mode</span>
-        <span id="uiCurrentPlayerBadge" class="text-xs sm:text-sm font-black px-2.5 py-0.5 rounded-lg bg-sky-600 text-white inline-block shadow">P1</span>
+  <header class="absolute top-0 left-0 right-0 p-2 sm:p-4 flex flex-wrap justify-between items-start pointer-events-none z-20 gap-2">
+    <!-- Left Group: Hole, Par, Distance, Shot, Player Info -->
+    <div class="pointer-events-auto bg-emerald-950/90 backdrop-blur-md border border-emerald-500/40 rounded-2xl p-2.5 sm:px-5 sm:py-3 shadow-2xl flex items-center gap-2.5 sm:gap-4 text-xs sm:text-base">
+      <div id="uiPlayerIndicator" class="border-r border-emerald-700/60 pr-2.5 sm:pr-3 text-center hidden">
+        <span class="text-[10px] uppercase tracking-wider text-emerald-300/80 font-bold block">Turn</span>
+        <span id="uiCurrentPlayerBadge" class="text-xs font-black px-2 py-0.5 rounded-lg bg-sky-600 text-white inline-block shadow">P1</span>
       </div>
-      <div class="border-r border-emerald-700/60 pr-3 sm:pr-4 text-center">
-        <span class="text-[10px] sm:text-xs uppercase tracking-wider text-emerald-300/80 font-bold block">Hole</span>
-        <span id="uiHoleNum" class="text-2xl sm:text-3xl font-black text-white">1</span>
+      <div class="border-r border-emerald-700/60 pr-2.5 sm:pr-3 text-center">
+        <span class="text-[10px] uppercase tracking-wider text-emerald-300/80 font-bold block">Hole</span>
+        <span id="uiHoleNum" class="text-xl sm:text-2xl font-black text-white">1</span>
       </div>
-      <div class="border-r border-emerald-700/60 pr-3 sm:pr-4 text-center">
-        <span class="text-[10px] sm:text-xs uppercase tracking-wider text-emerald-300/80 font-bold block">Par</span>
-        <span id="uiHolePar" class="text-xl sm:text-2xl font-bold text-amber-400">4</span>
+      <div class="border-r border-emerald-700/60 pr-2.5 sm:pr-3 text-center">
+        <span class="text-[10px] uppercase tracking-wider text-emerald-300/80 font-bold block">Par</span>
+        <span id="uiHolePar" class="text-lg sm:text-xl font-black text-amber-400">4</span>
       </div>
-      <div class="border-r border-emerald-700/60 pr-3 sm:pr-4 text-center">
-        <span class="text-[10px] sm:text-xs uppercase tracking-wider text-emerald-300/80 font-bold block">To Pin</span>
-        <span id="uiPinDist" class="text-xl sm:text-2xl font-black text-emerald-200">385 <span class="text-xs font-normal">yds</span></span>
+      <div class="border-r border-emerald-700/60 pr-2.5 sm:pr-3 text-center">
+        <span class="text-[10px] uppercase tracking-wider text-emerald-300/80 font-bold block">Pin</span>
+        <span id="uiPinDist" class="text-lg sm:text-xl font-black text-emerald-200">345 <span class="text-[10px] font-normal">yds</span></span>
       </div>
       <div class="text-center">
-        <span class="text-[10px] sm:text-xs uppercase tracking-wider text-emerald-300/80 font-bold block">Shot</span>
-        <span id="uiShotNum" class="text-xl sm:text-2xl font-bold text-white">1</span>
+        <span class="text-[10px] uppercase tracking-wider text-emerald-300/80 font-bold block">Shot</span>
+        <span id="uiShotNum" class="text-lg sm:text-xl font-black text-white">1</span>
       </div>
     </div>
 
-    <!-- Right HUD: Lie, Wind, Score & Action Buttons -->
-    <div class="pointer-events-auto flex flex-col items-end gap-2">
-      <div class="bg-emerald-950/85 backdrop-blur-md border border-emerald-500/40 rounded-2xl px-4 py-2 shadow-2xl flex items-center gap-3 sm:gap-4 text-xs sm:text-sm">
-        <div class="flex items-center gap-1.5">
+    <!-- Right Group: Lie, Wind, Score, Action Buttons -->
+    <div class="pointer-events-auto flex flex-col items-end gap-1.5">
+      <div class="bg-emerald-950/90 backdrop-blur-md border border-emerald-500/40 rounded-2xl px-3 py-1.5 shadow-2xl flex items-center gap-2.5 text-xs">
+        <div class="flex items-center gap-1">
           <span class="text-emerald-400/80 font-medium">Lie:</span>
           <span id="uiLieText" class="font-bold text-white bg-emerald-800/80 px-2 py-0.5 rounded-md">Tee</span>
         </div>
-        <div class="flex items-center gap-2 border-l border-emerald-700/60 pl-3">
+        <div class="flex items-center gap-1.5 border-l border-emerald-700/60 pl-2.5">
           <span class="text-emerald-400/80 font-medium">Wind:</span>
           <div class="flex items-center gap-1">
-            <svg id="uiWindArrow" class="w-4 h-4 text-cyan-400 transform transition-transform duration-500" viewBox="0 0 24 24" fill="currentColor">
+            <svg id="uiWindArrow" class="w-3.5 h-3.5 text-cyan-400 transform transition-transform duration-500" viewBox="0 0 24 24" fill="currentColor">
               <path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/>
             </svg>
-            <span id="uiWindSpeed" class="font-bold text-cyan-300">8 mph</span>
+            <span id="uiWindSpeed" class="font-bold text-cyan-300">6 mph</span>
           </div>
         </div>
-        <div class="flex items-center gap-1.5 border-l border-emerald-700/60 pl-3">
+        <div class="flex items-center gap-1 border-l border-emerald-700/60 pl-2.5">
           <span class="text-emerald-400/80 font-medium">Score:</span>
           <span id="uiTotalScore" class="font-black text-amber-400">E</span>
         </div>
       </div>
 
-      <!-- Quick Action Buttons -->
-      <div class="flex flex-wrap justify-end gap-2">
-        <button id="btnPracticeMenu" title="Practice Facilities" class="bg-amber-800/85 hover:bg-amber-700 backdrop-blur-md border border-amber-500/40 rounded-xl px-3 py-1.5 text-xs font-bold shadow-lg transition flex items-center gap-1 text-amber-100">
+      <!-- Action Navigation Buttons -->
+      <div class="flex flex-wrap justify-end gap-1.5">
+        <button id="btnCourseBuilder" title="Course Architect" class="bg-indigo-900/90 hover:bg-indigo-800 backdrop-blur-md border border-indigo-400/50 rounded-xl px-2.5 py-1.5 text-xs font-bold shadow-lg transition flex items-center gap-1 text-indigo-200 active:scale-95">
+          <span>🛠️ Architect</span>
+        </button>
+        <button id="btnPracticeMenu" title="Practice Facilities" class="bg-amber-800/90 hover:bg-amber-700 backdrop-blur-md border border-amber-400/50 rounded-xl px-2.5 py-1.5 text-xs font-bold shadow-lg transition flex items-center gap-1 text-amber-100 active:scale-95">
           <span>🎯 Practice</span>
         </button>
-        <button id="btnToggleCam" title="Change Camera View (C)" class="bg-emerald-900/85 hover:bg-emerald-800 backdrop-blur-md border border-emerald-600/40 rounded-xl px-3 py-1.5 text-xs font-semibold shadow-lg transition flex items-center gap-1 text-emerald-200">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-          <span class="hidden sm:inline">Follow Cam</span>
+        <button id="btnCourseMap" title="View Full Course Map (M)" class="bg-teal-900/90 hover:bg-teal-800 backdrop-blur-md border border-teal-500/40 rounded-xl px-2.5 py-1.5 text-xs font-semibold shadow-lg transition flex items-center gap-1 text-teal-200 active:scale-95">
+          <span>🗺️ Map [M]</span>
         </button>
-        <button id="btnCourseMap" title="View Full Course Layout (M)" class="bg-emerald-900/85 hover:bg-emerald-800 backdrop-blur-md border border-emerald-600/40 rounded-xl px-3 py-1.5 text-xs font-semibold shadow-lg transition flex items-center gap-1 text-emerald-200">
-          <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
-          <span>Map [M]</span>
+        <button id="btnToggleCam" title="Change Camera View (C)" class="bg-emerald-900/85 hover:bg-emerald-800 backdrop-blur-md border border-emerald-600/40 rounded-xl px-2 py-1.5 text-xs font-semibold shadow-lg transition flex items-center gap-1 text-emerald-200 active:scale-95">
+          <span>🎥 Cam [C]</span>
         </button>
-        <button id="btnScorecard" title="View Scorecard (Tab)" class="bg-emerald-900/85 hover:bg-emerald-800 backdrop-blur-md border border-emerald-600/40 rounded-xl px-3 py-1.5 text-xs font-semibold shadow-lg transition flex items-center gap-1 text-emerald-200">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
-          <span>Card</span>
+        <button id="btnScorecard" title="View Scorecard (Tab)" class="bg-emerald-900/85 hover:bg-emerald-800 backdrop-blur-md border border-emerald-600/40 rounded-xl px-2.5 py-1.5 text-xs font-semibold shadow-lg transition flex items-center gap-1 text-emerald-200 active:scale-95">
+          <span>📋 Card</span>
         </button>
-        <button id="btnMute" title="Toggle Sound" class="bg-emerald-900/85 hover:bg-emerald-800 backdrop-blur-md border border-emerald-600/40 rounded-xl px-2.5 py-1.5 text-xs font-semibold shadow-lg transition text-emerald-200">
+        <button id="btnMute" title="Toggle Sound" class="bg-emerald-900/85 hover:bg-emerald-800 backdrop-blur-md border border-emerald-600/40 rounded-xl px-2.5 py-1.5 text-xs font-semibold shadow-lg transition text-emerald-200 active:scale-95">
           <span id="muteIcon">🔊</span>
         </button>
       </div>
     </div>
   </header>
 
-  <!-- Shot Toast / Contact Announcement Banner -->
-  <div id="shotBanner" class="absolute top-24 left-1/2 transform -translate-x-1/2 pointer-events-none transition-all duration-300 opacity-0 -translate-y-4 z-30">
+  <!-- Shot Announcement Toast Banner -->
+  <div id="shotBanner" class="absolute top-20 left-1/2 transform -translate-x-1/2 pointer-events-none transition-all duration-300 opacity-0 -translate-y-4 z-30">
     <div id="shotBannerContent" class="bg-black/90 backdrop-blur-md border-2 border-amber-400 text-amber-300 font-black px-6 py-2 rounded-full shadow-2xl text-center text-sm sm:text-base tracking-wide flex items-center gap-2">
       <span>PERFECT CONTACT!</span>
     </div>
   </div>
 
-  <!-- Bottom Swing Console & Controls HUD -->
-  <footer class="absolute bottom-0 left-0 right-0 p-3 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-4 pointer-events-none z-20">
-    <!-- Club Selection Wheel / Card -->
-    <div class="pointer-events-auto bg-emerald-950/85 backdrop-blur-md border border-emerald-500/40 rounded-2xl p-3 shadow-2xl flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
-      <button id="btnClubPrev" class="w-9 h-9 rounded-xl bg-emerald-800/60 hover:bg-emerald-700 active:scale-95 transition flex items-center justify-center text-emerald-200 text-lg font-bold border border-emerald-600/30">◀</button>
-      <div class="text-center min-w-[130px] sm:min-w-[150px]">
-        <div id="uiClubName" class="text-lg sm:text-xl font-black text-white tracking-wide">Driver</div>
-        <div class="flex items-center justify-center gap-1.5 text-xs text-emerald-300/90 font-medium">
+  <!-- Bottom Swing Console & Controls -->
+  <footer class="absolute bottom-0 left-0 right-0 p-2 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-3 pointer-events-none z-20">
+    <!-- Club Selection Card -->
+    <div class="pointer-events-auto bg-emerald-950/90 backdrop-blur-md border border-emerald-500/40 rounded-2xl p-2.5 shadow-2xl flex items-center gap-2.5 w-full sm:w-auto justify-between sm:justify-start">
+      <button id="btnClubPrev" class="w-9 h-9 rounded-xl bg-emerald-800/70 hover:bg-emerald-700 active:scale-95 transition flex items-center justify-center text-emerald-200 text-lg font-bold border border-emerald-600/30">◀</button>
+      <div class="text-center min-w-[125px] sm:min-w-[145px]">
+        <div id="uiClubName" class="text-base sm:text-lg font-black text-white tracking-wide">Driver</div>
+        <div class="flex items-center justify-center gap-1.5 text-[11px] sm:text-xs text-emerald-300/90 font-medium">
           <span>Carry:</span>
           <span id="uiClubDist" class="font-bold text-amber-300">260 yds</span>
           <span class="text-emerald-500">|</span>
           <span id="uiClubLoft" class="text-emerald-400">12°</span>
         </div>
       </div>
-      <button id="btnClubNext" class="w-9 h-9 rounded-xl bg-emerald-800/60 hover:bg-emerald-700 active:scale-95 transition flex items-center justify-center text-emerald-200 text-lg font-bold border border-emerald-600/30">▶</button>
+      <button id="btnClubNext" class="w-9 h-9 rounded-xl bg-emerald-800/70 hover:bg-emerald-700 active:scale-95 transition flex items-center justify-center text-emerald-200 text-lg font-bold border border-emerald-600/30">▶</button>
     </div>
 
-    <!-- Central Swing / Putting Gauge Console -->
-    <div class="pointer-events-auto flex flex-col items-center gap-2 w-full max-w-md">
+    <!-- Central Swing & Aim Console -->
+    <div class="pointer-events-auto flex flex-col items-center gap-1.5 w-full max-w-md">
       <div class="flex items-center justify-between w-full px-2 text-xs text-emerald-300/80 font-semibold">
-        <div class="flex items-center gap-1">
-          <button id="btnAimLeft" class="bg-emerald-900/70 hover:bg-emerald-800 border border-emerald-600/30 px-3 py-1 rounded-lg text-emerald-200 active:scale-95 transition">⟲ Aim Left [A]</button>
-          <button id="btnAimRight" class="bg-emerald-900/70 hover:bg-emerald-800 border border-emerald-600/30 px-3 py-1 rounded-lg text-emerald-200 active:scale-95 transition">Aim Right [D] ⟳</button>
+        <div class="flex items-center gap-1.5">
+          <button id="btnAimLeft" class="bg-emerald-900/80 hover:bg-emerald-800 border border-emerald-600/40 px-3 py-1 rounded-lg text-emerald-200 active:scale-95 transition">⟲ Aim Left [A]</button>
+          <button id="btnAimRight" class="bg-emerald-900/80 hover:bg-emerald-800 border border-emerald-600/40 px-3 py-1 rounded-lg text-emerald-200 active:scale-95 transition">Aim Right [D] ⟳</button>
         </div>
         <span id="uiAimAngle" class="text-white font-mono text-xs">0°</span>
       </div>
 
-      <!-- Interactive 3-Click Dynamic Swing Meter Canvas -->
-      <div id="swingMeterBox" class="relative w-full h-14 bg-emerald-950/90 border-2 border-emerald-400/50 rounded-2xl shadow-2xl overflow-hidden p-1 cursor-pointer flex items-center justify-center hover:border-emerald-400 transition glow-active">
+      <!-- 3-Click Swing Meter Canvas -->
+      <div id="swingMeterBox" class="relative w-full h-12 bg-emerald-950/90 border-2 border-emerald-400/50 rounded-2xl shadow-2xl overflow-hidden p-1 cursor-pointer flex items-center justify-center hover:border-emerald-400 transition glow-active">
         <canvas id="meterCanvas" class="w-full h-full rounded-xl"></canvas>
         <div id="swingPrompt" class="absolute inset-0 flex items-center justify-center pointer-events-none text-white text-xs sm:text-sm font-extrabold uppercase tracking-wider drop-shadow-md">
           Click or Press Space to Swing
@@ -169,93 +279,337 @@
       </div>
     </div>
 
-    <!-- Right Controls / Mini-guide -->
-    <div class="pointer-events-auto hidden lg:flex flex-col items-end text-xs text-emerald-300/70 bg-emerald-950/70 backdrop-blur-md p-3 rounded-2xl border border-emerald-500/30">
-      <div class="font-bold text-white mb-1">Controls Guide</div>
+    <!-- Quick Keyboard Guide (Desktop) -->
+    <div class="pointer-events-auto hidden xl:flex flex-col items-end text-[11px] text-emerald-300/70 bg-emerald-950/80 backdrop-blur-md p-2.5 rounded-2xl border border-emerald-500/30">
+      <div class="font-bold text-white mb-0.5">Controls Guide</div>
       <div><span class="text-emerald-400 font-semibold">Space / Click:</span> 3-Click Swing</div>
       <div><span class="text-emerald-400 font-semibold">A / D or Drag:</span> Aim Direction</div>
-      <div><span class="text-emerald-400 font-semibold">W / S or 1-9:</span> Cycle Clubs</div>
-      <div><span class="text-emerald-400 font-semibold">M:</span> Full Course Layout | <span class="text-emerald-400 font-semibold">Tab:</span> Scorecard</div>
+      <div><span class="text-emerald-400 font-semibold">W / S or 1-9:</span> Change Club</div>
+      <div><span class="text-emerald-400 font-semibold">M:</span> Full Map &bull; <span class="text-emerald-400 font-semibold">Tab:</span> Scorecard</div>
     </div>
   </footer>
 
-  <!-- Practice Facilities Selection Modal -->
-  <div id="practiceModal" class="absolute inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center z-50 hidden p-4">
-    <div class="bg-gradient-to-b from-emerald-900 to-emerald-950 border border-emerald-500/50 rounded-3xl max-w-md w-full p-6 shadow-2xl text-center">
-      <div class="flex justify-between items-center mb-4 border-b border-emerald-700/50 pb-3">
+  <!-- Practice Facility Selector Modal -->
+  <div id="practiceModal" class="modal-backdrop hidden">
+    <div class="modal-dialog max-w-md text-center p-5 sm:p-6">
+      <div class="flex justify-between items-center mb-3 pb-2 border-b border-indigo-700/50">
         <div class="flex items-center gap-2">
           <span class="text-2xl">🎯</span>
-          <h2 class="text-xl font-black text-white">Practice Facilities</h2>
+          <h3 class="text-lg sm:text-xl font-black text-white">Practice Facilities</h3>
         </div>
-        <button id="btnClosePracticeModal" class="text-emerald-300 hover:text-white bg-emerald-800/60 p-2 rounded-xl text-lg font-bold">✕</button>
+        <button id="btnClosePracticeModal" type="button" class="tool-btn text-xs bg-slate-800 hover:bg-slate-700 text-slate-300">✕ Close</button>
       </div>
-      <p class="text-emerald-300/80 text-xs mb-5">Hone your swing mechanics, calibrate club distances, or master green breaks with unlimited practice balls.</p>
-
-      <div class="space-y-3 mb-6">
-        <button id="btnSelectRange" class="w-full text-left p-4 rounded-2xl bg-emerald-950/80 border border-emerald-600/40 hover:border-amber-400 hover:bg-emerald-900/60 transition group flex items-center justify-between">
-          <div>
-            <div class="text-base font-black text-white group-hover:text-amber-300 flex items-center gap-2">
-              <span>🏌️‍♂️ Driving Range</span>
-              <span class="text-[10px] bg-amber-500/30 text-amber-300 px-2 py-0.5 rounded-full border border-amber-500/40">Woods &amp; Irons</span>
+      <p class="text-xs text-indigo-300/80 mb-4">Hone your woods, irons, and short-game feel with unlimited practice shots.</p>
+      
+      <div class="grid grid-cols-1 gap-2.5 mb-2">
+        <button id="btnSelectRange" type="button" class="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-950/90 to-indigo-950/90 hover:from-emerald-900 hover:to-indigo-900 border border-emerald-500/50 flex items-center justify-between transition group active:scale-95 text-left">
+          <div class="flex items-center gap-3">
+            <span class="text-3xl group-hover:scale-110 transition">🏌️‍♂️</span>
+            <div>
+              <span class="block font-black text-sm text-white">Driving Range</span>
+              <span class="block text-[10px] text-emerald-300/80">Target flags from 75 to 275 yards with live carry feedback</span>
             </div>
-            <div class="text-xs text-emerald-300/70 mt-1">Calibrate full swings across 75, 125, 175, 225, and 275 yd target pins.</div>
           </div>
-          <span class="text-amber-400 text-xl group-hover:translate-x-1 transition">▶</span>
+          <span class="text-emerald-400 font-black text-sm">▶</span>
         </button>
 
-        <button id="btnSelectPutting" class="w-full text-left p-4 rounded-2xl bg-emerald-950/80 border border-emerald-600/40 hover:border-emerald-400 hover:bg-emerald-900/60 transition group flex items-center justify-between">
-          <div>
-            <div class="text-base font-black text-white group-hover:text-emerald-300 flex items-center gap-2">
-              <span>⛳ Practice Putting Green</span>
-              <span class="text-[10px] bg-emerald-500/30 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-500/40">Short Game</span>
+        <button id="btnSelectPuttingGreen" type="button" class="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-950/90 to-indigo-950/90 hover:from-emerald-900 hover:to-indigo-900 border border-emerald-500/50 flex items-center justify-between transition group active:scale-95 text-left">
+          <div class="flex items-center gap-3">
+            <span class="text-3xl group-hover:scale-110 transition">⛳</span>
+            <div>
+              <span class="block font-black text-sm text-white">Putting Green</span>
+              <span class="block text-[10px] text-emerald-300/80">Read green slopes, contour beads &amp; cup speeds</span>
             </div>
-            <div class="text-xs text-emerald-300/70 mt-1">Fine-tune pace, distance control, and read contour slope breaks.</div>
           </div>
-          <span class="text-emerald-400 text-xl group-hover:translate-x-1 transition">▶</span>
+          <span class="text-emerald-400 font-black text-sm">▶</span>
         </button>
       </div>
-
-      <button id="btnReturnToCourse" class="w-full py-2.5 px-4 rounded-xl bg-emerald-800/80 hover:bg-emerald-700 text-emerald-200 text-xs font-bold transition">
-        Return to Tournament Hole ↶
-      </button>
     </div>
   </div>
 
-  <!-- Full Course Layout Overview Modal -->
-  <div id="courseMapModal" class="absolute inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center z-50 hidden p-3 sm:p-6">
-    <div class="bg-gradient-to-b from-emerald-950 via-emerald-900 to-black border border-emerald-500/40 rounded-3xl max-w-5xl w-full p-4 sm:p-6 shadow-2xl flex flex-col max-h-[95vh]">
-      <div class="flex justify-between items-center mb-3 border-b border-emerald-700/50 pb-2.5">
-        <div class="flex items-center gap-3">
-          <span class="text-2xl">🗺️</span>
+  <!-- Welcome / Tour Setup Modal -->
+  <div id="welcomeModal" class="modal-backdrop">
+    <div class="bg-gradient-to-b from-slate-900 via-emerald-950 to-black border border-emerald-500/50 rounded-3xl max-w-lg w-full p-5 sm:p-7 shadow-2xl text-center">
+      <div class="text-4xl sm:text-5xl mb-2">⛳</div>
+      <h1 class="text-2xl sm:text-3xl font-black text-white tracking-tight mb-1">Fairway Classic</h1>
+      <p class="text-emerald-300/80 text-xs sm:text-sm mb-4">Championship 18-Hole Resort with interactive custom course architect, freeform drawing, hazards, and authentic ball flight.</p>
+
+      <!-- Game Mode Selection -->
+      <div class="text-left mb-3.5">
+        <label class="block text-[11px] uppercase font-bold text-emerald-400 mb-1.5">Select Game Mode:</label>
+        <div class="grid grid-cols-2 gap-2">
+          <label class="flex items-center p-2 rounded-xl bg-slate-950/70 border border-emerald-700/50 cursor-pointer hover:border-emerald-400 transition">
+            <input type="radio" name="gameMode" value="1P" checked class="w-4 h-4 text-emerald-500" />
+            <div class="ml-2.5">
+              <span class="block text-xs font-bold text-white">Single Player</span>
+              <span class="block text-[10px] text-emerald-300/70">Solo stroke play</span>
+            </div>
+          </label>
+          <label class="flex items-center p-2 rounded-xl bg-slate-950/70 border border-emerald-700/50 cursor-pointer hover:border-emerald-400 transition">
+            <input type="radio" name="gameMode" value="2P" class="w-4 h-4 text-emerald-500" />
+            <div class="ml-2.5">
+              <span class="block text-xs font-bold text-white">2-Player Match</span>
+              <span class="block text-[10px] text-emerald-300/70">Pass &amp; play match</span>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <!-- Difficulty Selection -->
+      <div class="text-left mb-5">
+        <label class="block text-[11px] uppercase font-bold text-emerald-400 mb-1.5">Select Tour Difficulty:</label>
+        <div class="space-y-1.5">
+          <label class="flex items-center p-2 rounded-xl bg-slate-950/70 border border-emerald-700/50 cursor-pointer hover:border-emerald-400 transition">
+            <input type="radio" name="difficulty" value="beginner" class="w-4 h-4 text-emerald-500" />
+            <div class="ml-2.5">
+              <span class="block text-xs font-bold text-white">Beginner</span>
+              <span class="block text-[10px] text-emerald-300/70">Larger sweet spot, light breezes, forgiving rough.</span>
+            </div>
+          </label>
+          <label class="flex items-center p-2 rounded-xl bg-slate-950/70 border border-emerald-700/50 cursor-pointer hover:border-emerald-400 transition">
+            <input type="radio" name="difficulty" value="intermediate" checked class="w-4 h-4 text-emerald-500" />
+            <div class="ml-2.5">
+              <span class="block text-xs font-bold text-white">Intermediate (Championship)</span>
+              <span class="block text-[10px] text-emerald-300/70">Standard swing speed, realistic winds &amp; hazards.</span>
+            </div>
+          </label>
+          <label class="flex items-center p-2 rounded-xl bg-slate-950/70 border border-emerald-700/50 cursor-pointer hover:border-emerald-400 transition">
+            <input type="radio" name="difficulty" value="pro" class="w-4 h-4 text-emerald-500" />
+            <div class="ml-2.5">
+              <span class="block text-xs font-bold text-white">Tour Pro</span>
+              <span class="block text-[10px] text-emerald-300/70">Fast swing needle, tight sweet spot &amp; strong gusts.</span>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <!-- Primary Action Buttons -->
+      <div class="flex flex-col gap-2">
+        <button id="btnStartGame" class="w-full py-3 px-6 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-300 hover:from-emerald-300 hover:to-teal-200 text-emerald-950 font-black text-sm sm:text-base shadow-xl transition active:scale-95">
+          Tee Off Now (Championship Course) 🏌️‍♂️
+        </button>
+        <button id="btnOpenBuilderFromWelcome" class="w-full py-2.5 px-6 rounded-2xl bg-indigo-950/90 hover:bg-indigo-900 border border-indigo-400/50 text-indigo-200 font-bold text-xs transition flex items-center justify-center gap-1.5 active:scale-95">
+          <span>🛠️ Interactive Course Architect (Design 3, 9, or 18 Holes)</span>
+        </button>
+        <button id="btnOpenPracticeFromWelcome" class="w-full py-2.5 px-6 rounded-2xl bg-amber-950/90 hover:bg-amber-900 border border-amber-500/40 text-amber-200 font-bold text-xs transition active:scale-95">
+          <span>🎯 Practice at Driving Range / Putting Green</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Course Architect (Custom Course Creator & Interactive Editor) Modal -->
+  <div id="courseBuilderModal" class="modal-backdrop hidden">
+    <div class="modal-dialog">
+      
+      <!-- Top Title & Navigation Bar -->
+      <div class="flex flex-wrap justify-between items-center mb-2 pb-2 border-b border-indigo-700/50 gap-2">
+        <div class="flex items-center gap-2.5">
+          <span class="text-2xl sm:text-3xl">🛠️</span>
           <div>
-            <h2 class="text-xl sm:text-2xl font-black text-white">Championship Resort Layout</h2>
-            <p class="text-xs text-emerald-300/80">Complete 18-Hole Master Aerial Map &bull; Active Hole & Ball Highlighted</p>
+            <h2 class="text-lg sm:text-xl font-black text-white flex items-center gap-2">
+              <span>Course Architect Studio</span>
+              <span id="builderActiveHoleBadge" class="text-xs bg-indigo-600 px-2 py-0.5 rounded-md font-bold">Hole 1 (Par 4)</span>
+              <span id="uiAutoSaveBadge" class="text-[10px] bg-emerald-900/90 text-emerald-300 px-2 py-0.5 rounded-md border border-emerald-500/40 font-semibold">💾 Auto-Saved</span>
+            </h2>
+            <p class="text-[11px] text-indigo-300/80">Edits save automatically to your browser. You can exit and resume anytime.</p>
           </div>
         </div>
-        <button id="btnCloseCourseMap" class="text-emerald-300 hover:text-white bg-emerald-800/60 p-2 rounded-xl text-lg font-bold">✕</button>
-      </div>
-      <div class="relative w-full flex-1 min-h-[350px] sm:min-h-[480px] bg-[#0c2214] rounded-2xl overflow-hidden border border-emerald-700/40 shadow-inner flex items-center justify-center">
-        <canvas id="overviewCanvas" class="w-full h-full block cursor-pointer"></canvas>
-        <div class="absolute bottom-3 left-3 bg-black/75 backdrop-blur-md px-3 py-1.5 rounded-xl border border-emerald-500/30 text-xs text-emerald-200 flex items-center gap-3">
-          <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-red-500 inline-block"></span> Active Pin</span>
-          <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-white border border-sky-400 inline-block"></span> Ball Lie</span>
-          <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-sky-600 inline-block"></span> Water Hazard</span>
+
+        <div class="flex items-center gap-1.5 sm:gap-2">
+          <button id="btnExportCourse" type="button" class="tool-btn text-xs bg-indigo-950 hover:bg-indigo-800 text-indigo-200" title="Copy course save code to backup or share">
+            📋 Export
+          </button>
+          <button id="btnImportCourse" type="button" class="tool-btn text-xs bg-indigo-950 hover:bg-indigo-800 text-indigo-200" title="Load a saved course code">
+            📥 Import
+          </button>
+          <button id="btnRandomizeCurrentHole" type="button" class="tool-btn text-xs bg-indigo-900/60 hover:bg-indigo-800 text-indigo-200">
+            🎲 Reset Hole
+          </button>
+          <button id="btnCloseBuilderModal" class="tool-btn text-xs bg-slate-800 hover:bg-slate-700 text-slate-300" title="Save and resume later">
+            ✕ Save &amp; Exit
+          </button>
         </div>
+      </div>
+
+      <!-- Course Setup Header Options -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-2 text-xs">
+        <div class="flex items-center gap-2 bg-slate-950/80 p-2 rounded-xl border border-indigo-800/40">
+          <label class="text-[10px] font-bold uppercase text-indigo-300 whitespace-nowrap">Course Name:</label>
+          <input id="builderCourseName" type="text" value="Eagle Crest Links" class="flex-1 font-bold text-xs" />
+        </div>
+        <div class="flex items-center gap-2 bg-slate-950/80 p-2 rounded-xl border border-indigo-800/40">
+          <label class="text-[10px] font-bold uppercase text-indigo-300">Round Length:</label>
+          <div class="flex gap-1">
+            <button type="button" data-holes="3" class="btnHoleCount px-2 py-1 rounded-lg border border-indigo-600/40 bg-indigo-950 text-white text-[11px] font-bold">3H</button>
+            <button type="button" data-holes="9" class="btnHoleCount px-2 py-1 rounded-lg border border-indigo-600/40 bg-indigo-950 text-white text-[11px] font-bold">9H</button>
+            <button type="button" data-holes="18" class="btnHoleCount px-2 py-1 rounded-lg border-2 border-indigo-400 bg-indigo-600 text-white text-[11px] font-black">18H</button>
+          </div>
+        </div>
+        <div class="flex items-center justify-between gap-1.5 bg-slate-950/80 p-2 rounded-xl border border-indigo-800/40">
+          <div class="flex gap-1.5">
+            <button id="btnPar3" class="btnSelectPar px-2.5 py-1 rounded-lg border border-indigo-600/40 bg-indigo-950 text-white font-bold text-xs">Par 3</button>
+            <button id="btnPar4" class="btnSelectPar px-2.5 py-1 rounded-lg border-2 border-indigo-400 bg-indigo-600 text-white font-black text-xs">Par 4</button>
+            <button id="btnPar5" class="btnSelectPar px-2.5 py-1 rounded-lg border border-indigo-600/40 bg-indigo-950 text-white font-bold text-xs">Par 5</button>
+          </div>
+          <span id="builderLiveYardage" class="text-amber-300 font-mono font-bold text-xs">385 yds</span>
+        </div>
+      </div>
+
+      <!-- Hole Tabs Selector Row -->
+      <div id="builderHolePills" class="flex gap-1 overflow-x-auto pb-1.5 custom-scroll mb-2">
+        <!-- Populated dynamically by JS -->
+      </div>
+
+      <!-- Main Interactive Studio: Left Tools Palette + Center Blueprint Canvas -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-2.5 flex-1 min-h-0 overflow-hidden">
+        
+        <!-- Left Interactive Tool Palette -->
+        <div class="lg:col-span-3 bg-slate-950/90 border border-indigo-800/60 rounded-2xl p-2.5 flex flex-col gap-2 overflow-y-auto custom-scroll text-xs">
+          <div class="text-[11px] font-black uppercase text-indigo-400 tracking-wider">Interactive Tools</div>
+
+          <!-- Primary Manipulation Tools -->
+          <div class="grid grid-cols-2 gap-1.5">
+            <button type="button" id="toolSelectMove" class="tool-btn active w-full" title="Click and drag any object on the canvas">
+              <span>✋ Move / Drag</span>
+            </button>
+            <button type="button" id="toolDrawFairway" class="tool-btn w-full" title="Click and drag on the canvas to paint the fairway shape">
+              <span>🖌️ Draw Fairway</span>
+            </button>
+          </div>
+
+          <!-- Placement Tools -->
+          <div class="text-[10px] font-bold uppercase text-indigo-300/80 mt-1">Stamp &amp; Place Elements</div>
+          <div class="grid grid-cols-2 gap-1.5">
+            <button type="button" id="toolAddTee" class="tool-btn w-full" title="Click anywhere on canvas to relocate Tee Box">
+              <span>⛳ Set Tee</span>
+            </button>
+            <button type="button" id="toolAddGreen" class="tool-btn w-full" title="Click anywhere to place the Green & Pin">
+              <span>🎯 Set Green</span>
+            </button>
+            <button type="button" id="toolAddBunker" class="tool-btn w-full" title="Click on canvas to place a Sand Bunker">
+              <span>🏖️ + Bunker</span>
+            </button>
+            <button type="button" id="toolAddTree" class="tool-btn w-full" title="Click on canvas to plant a Tree">
+              <span>🌲 + Tree</span>
+            </button>
+            <button type="button" id="toolAddWater" class="tool-btn w-full" title="Click on canvas to create a Water Pond">
+              <span>💧 + Water</span>
+            </button>
+            <button type="button" id="toolAddHill" class="tool-btn w-full" title="Click and drag arrow to set Hill break & slope">
+              <span>⛰️ + Slope Hill</span>
+            </button>
+          </div>
+
+          <!-- Fairway Width & Erase -->
+          <div class="bg-indigo-950/50 p-2 rounded-xl border border-indigo-800/40 space-y-1.5 mt-1">
+            <div class="flex justify-between text-[11px] font-bold text-indigo-200">
+              <span>Fairway Brush Width</span>
+              <span id="uiFairwayWidthLabel" class="text-amber-300 font-mono">54 yds</span>
+            </div>
+            <input id="sliderFairwayWidth" type="range" min="30" max="85" value="54" class="w-full cursor-pointer" />
+            <div class="flex gap-1.5 pt-1">
+              <button type="button" id="btnClearFairways" class="flex-1 py-1 px-2 rounded-lg bg-indigo-900/60 hover:bg-indigo-800 border border-indigo-600/40 text-[10px] font-bold text-indigo-200">
+                Redraw Fairway
+              </button>
+              <button type="button" id="toolEraseElement" class="tool-btn flex-1 text-center justify-center text-[10px] bg-red-950/60 border-red-500/40 text-red-200 hover:bg-red-900">
+                🗑️ Delete Item
+              </button>
+            </div>
+          </div>
+
+          <!-- Instructions Card -->
+          <div class="bg-slate-900/80 p-2.5 rounded-xl border border-indigo-700/30 text-[10px] text-indigo-200/90 leading-relaxed mt-auto">
+            <span class="font-bold text-white block mb-0.5">💾 Auto-Save Guide:</span>
+            &bull; Everything you build is automatically saved to browser storage.<br/>
+            &bull; You can close and resume work whenever you like.<br/>
+            &bull; Use <strong class="text-white">Export</strong> to copy your course data as text.
+          </div>
+        </div>
+
+        <!-- Center Interactive Blueprint Canvas -->
+        <div class="lg:col-span-9 bg-slate-950/95 border-2 border-indigo-700/60 rounded-2xl relative overflow-hidden flex flex-col shadow-inner">
+          
+          <!-- Canvas Live Status Overlay Bar -->
+          <div class="absolute top-2 left-2 right-2 flex justify-between items-center pointer-events-none z-10">
+            <div class="bg-black/80 backdrop-blur-md px-3 py-1 rounded-xl text-[11px] font-black border border-indigo-500/40 text-indigo-200 shadow">
+              <span id="canvasActiveToolText">Mode: ✋ Move / Drag Elements</span>
+            </div>
+            <div class="bg-black/80 backdrop-blur-md px-3 py-1 rounded-xl text-[11px] font-bold border border-indigo-500/40 text-amber-300 shadow">
+              <span id="canvasHoverObjText">Hover over any item to drag</span>
+            </div>
+          </div>
+
+          <!-- Interactive Course Blueprint Canvas -->
+          <canvas id="builderPreviewCanvas" class="w-full h-full block cursor-crosshair"></canvas>
+
+          <!-- Bottom Canvas Hint -->
+          <div class="absolute bottom-2 left-3 pointer-events-none text-[10px] text-indigo-300/70 bg-black/70 px-2 py-0.5 rounded-md backdrop-blur-sm">
+            Interactive Blueprint Studio &bull; Real-time Physics Scale
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Action Footer -->
+      <div class="flex flex-wrap items-center justify-between pt-2 mt-2 border-t border-indigo-800/50 gap-2">
+        <button id="btnCancelBuilder" type="button" class="btn-secondary text-xs">
+          Save &amp; Return to Game
+        </button>
+        <div class="flex items-center gap-3">
+          <span id="builderSummaryBadge" class="text-xs text-indigo-300 font-bold hidden sm:inline">18 Holes &bull; Par 72</span>
+          <button id="btnPlayCustomCourse" type="button" class="btn-primary text-xs sm:text-sm flex items-center gap-1.5">
+            <span>Tee Off on Custom Course 🏌️‍♂️</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Course Import / Export Text Modal -->
+  <div id="importExportModal" class="modal-backdrop hidden">
+    <div class="modal-dialog max-w-lg">
+      <div class="flex justify-between items-center mb-3 pb-2 border-b border-indigo-700/50">
+        <h3 id="importExportTitle" class="text-lg font-black text-white">Course Code</h3>
+        <button id="btnCloseImportExportModal" class="text-indigo-300 hover:text-white bg-slate-800 p-1.5 rounded-lg text-xs font-bold">✕</button>
+      </div>
+      <p id="importExportDesc" class="text-xs text-indigo-300/80 mb-2">Copy this course code or paste a previously saved code below:</p>
+      <textarea id="importExportTextarea" class="w-full h-44 bg-slate-950 border border-indigo-600/50 rounded-xl p-3 text-xs font-mono text-emerald-300 resize-none mb-3 custom-scroll"></textarea>
+      <div class="flex justify-end gap-2">
+        <button id="btnCopyExportData" type="button" class="tool-btn bg-indigo-800 text-white">📋 Copy to Clipboard</button>
+        <button id="btnApplyImportData" type="button" class="btn-primary text-xs hidden">Apply &amp; Load Course</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Full Course Layout Map Modal -->
+  <div id="courseMapModal" class="modal-backdrop hidden">
+    <div class="bg-gradient-to-b from-slate-900 to-emerald-950 border border-emerald-500/50 rounded-3xl max-w-4xl w-full p-4 sm:p-6 shadow-2xl flex flex-col max-h-[95vh]">
+      <div class="flex justify-between items-center mb-2.5 border-b border-emerald-700/50 pb-2">
+        <div>
+          <h2 id="overviewCourseTitle" class="text-xl sm:text-2xl font-black text-white">Championship Course Overview</h2>
+          <p class="text-xs text-emerald-300/80">Full 18-hole resort layout &bull; Active hole &amp; ball highlighted</p>
+        </div>
+        <button id="btnCloseCourseMap" class="text-emerald-300 hover:text-white bg-emerald-800/60 p-2 rounded-xl text-sm font-bold">✕</button>
+      </div>
+      <div class="flex-1 relative overflow-hidden bg-black/60 rounded-2xl border border-emerald-700/30 flex items-center justify-center min-h-[300px]">
+        <canvas id="overviewCanvas" class="w-full h-full rounded-2xl block"></canvas>
       </div>
     </div>
   </div>
 
   <!-- Hole Complete Modal -->
-  <div id="holeCompleteModal" class="absolute inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 hidden p-4">
+  <div id="holeCompleteModal" class="modal-backdrop hidden">
     <div class="bg-gradient-to-b from-emerald-900 to-emerald-950 border-2 border-emerald-400/50 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl text-center">
       <div id="holeScoreBanner" class="inline-block px-5 py-1.5 rounded-full text-xs font-black uppercase tracking-widest bg-amber-400 text-emerald-950 mb-3">
         Birdie!
       </div>
-      <h2 id="holeCompleteTitle" class="text-3xl font-black text-white mb-1">Hole 1 Complete</h2>
-      <p id="holeCompleteSubtitle" class="text-emerald-300/80 text-sm mb-5">4 Strokes (Par 4)</p>
+      <h2 id="holeCompleteTitle" class="text-2xl sm:text-3xl font-black text-white mb-1">Hole 1 Complete</h2>
+      <p id="holeCompleteSubtitle" class="text-emerald-300/80 text-xs sm:text-sm mb-5">4 Strokes (Par 4)</p>
       
-      <!-- Single Player Stats Container -->
-      <div id="singlePlayerStatsContainer" class="grid grid-cols-3 gap-3 bg-emerald-950/70 p-4 rounded-2xl border border-emerald-600/40 mb-6 text-sm">
+      <!-- Single Player Stats -->
+      <div id="singlePlayerStatsContainer" class="grid grid-cols-3 gap-3 bg-emerald-950/70 p-4 rounded-2xl border border-emerald-600/40 mb-5 text-sm">
         <div>
           <span class="text-emerald-400 text-xs block font-bold">Strokes</span>
           <span id="modalHoleStrokes" class="text-2xl font-black text-white">4</span>
@@ -271,7 +625,7 @@
       </div>
 
       <!-- 2 Player Comparison Breakdown -->
-      <div id="twoPlayerStatsContainer" class="hidden grid-cols-2 gap-3 bg-emerald-950/70 p-4 rounded-2xl border border-emerald-600/40 mb-6 text-sm">
+      <div id="twoPlayerStatsContainer" class="hidden grid-cols-2 gap-3 bg-emerald-950/70 p-4 rounded-2xl border border-emerald-600/40 mb-5 text-sm">
         <div class="border-r border-emerald-700/60 pr-2">
           <span class="text-sky-300 text-xs block font-bold">Player 1</span>
           <span id="modalP1Strokes" class="text-2xl font-black text-white">4</span>
@@ -285,10 +639,10 @@
       </div>
 
       <div class="flex gap-3">
-        <button id="btnViewCardFromModal" class="flex-1 py-3 px-4 rounded-xl bg-emerald-800/80 hover:bg-emerald-700 text-white font-bold text-sm transition border border-emerald-600/40">
+        <button id="btnViewCardFromModal" class="flex-1 py-3 px-4 rounded-xl bg-emerald-800/80 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm transition border border-emerald-600/40">
           Scorecard
         </button>
-        <button id="btnNextHole" class="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-400 to-teal-300 hover:from-emerald-300 hover:to-teal-200 text-emerald-950 font-black text-sm tracking-wide shadow-lg transition">
+        <button id="btnNextHole" class="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-400 to-teal-300 hover:from-emerald-300 hover:to-teal-200 text-emerald-950 font-black text-xs sm:text-sm tracking-wide shadow-lg transition active:scale-95">
           Next Hole ▶
         </button>
       </div>
@@ -296,17 +650,17 @@
   </div>
 
   <!-- Scorecard Modal -->
-  <div id="scorecardModal" class="absolute inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 hidden p-3 sm:p-6">
-    <div class="bg-gradient-to-b from-emerald-900 to-emerald-950 border border-emerald-500/40 rounded-3xl max-w-4xl w-full p-5 sm:p-7 shadow-2xl flex flex-col max-h-[90vh]">
-      <div class="flex justify-between items-center mb-4 border-b border-emerald-700/50 pb-3">
+  <div id="scorecardModal" class="modal-backdrop hidden">
+    <div class="bg-gradient-to-b from-slate-900 to-emerald-950 border border-emerald-500/40 rounded-3xl max-w-4xl w-full p-4 sm:p-7 shadow-2xl flex flex-col max-h-[90vh]">
+      <div class="flex justify-between items-center mb-3 border-b border-emerald-700/50 pb-2.5">
         <div>
-          <h2 class="text-2xl font-black text-white">Championship Course</h2>
-          <p class="text-xs text-emerald-300/80">Official Scorecard &bull; 18 Holes &bull; Par 72 &bull; Blue: 6,475 yds | White: 6,210 yds</p>
+          <h2 id="scorecardCourseHeader" class="text-xl sm:text-2xl font-black text-white">Official Championship Scorecard</h2>
+          <p id="scorecardCourseSubHeader" class="text-xs text-emerald-300/80">18 Holes &bull; Par 72</p>
         </div>
-        <button id="btnCloseScorecard" class="text-emerald-300 hover:text-white bg-emerald-800/60 p-2 rounded-xl text-lg font-bold">✕</button>
+        <button id="btnCloseScorecard" class="text-emerald-300 hover:text-white bg-emerald-800/60 p-2 rounded-xl text-sm font-bold">✕</button>
       </div>
 
-      <div class="overflow-x-auto custom-scroll mb-4 flex-1">
+      <div class="overflow-x-auto custom-scroll mb-3 flex-1">
         <table class="w-full text-center text-xs sm:text-sm border-collapse">
           <thead>
             <tr class="bg-emerald-950/80 text-emerald-300 font-bold border-b border-emerald-700/60">
@@ -319,29 +673,8 @@
             </tr>
           </thead>
           <tbody>
-            <tr class="border-b border-emerald-800/30 text-sky-300 text-[11px]">
-              <td class="p-1.5 font-bold text-left text-sky-400">Blue</td>
-              <td class="p-1.5">365</td><td class="p-1.5">380</td><td class="p-1.5">165</td><td class="p-1.5">375</td><td class="p-1.5">500</td><td class="p-1.5">310</td><td class="p-1.5">170</td><td class="p-1.5">550</td><td class="p-1.5">350</td>
-              <td class="p-1.5 bg-emerald-950 font-bold text-sky-300">3165</td>
-              <td class="p-1.5">440</td><td class="p-1.5">365</td><td class="p-1.5">555</td><td class="p-1.5">145</td><td class="p-1.5">370</td><td class="p-1.5">310</td><td class="p-1.5">190</td><td class="p-1.5">385</td><td class="p-1.5">550</td>
-              <td class="p-1.5 bg-emerald-950 font-bold text-sky-300">3310</td>
-              <td class="p-1.5 bg-emerald-900 font-bold text-sky-300">6475</td>
-            </tr>
-            <tr class="border-b border-emerald-800/40 text-emerald-100 text-[11px]">
-              <td class="p-1.5 font-bold text-left text-emerald-300">White</td>
-              <td class="p-1.5">345</td><td class="p-1.5">365</td><td class="p-1.5">150</td><td class="p-1.5">365</td><td class="p-1.5">485</td><td class="p-1.5">295</td><td class="p-1.5">160</td><td class="p-1.5">515</td><td class="p-1.5">330</td>
-              <td class="p-1.5 bg-emerald-950 font-bold text-emerald-200">3010</td>
-              <td class="p-1.5">420</td><td class="p-1.5">350</td><td class="p-1.5">545</td><td class="p-1.5">140</td><td class="p-1.5">360</td><td class="p-1.5">300</td><td class="p-1.5">175</td><td class="p-1.5">370</td><td class="p-1.5">540</td>
-              <td class="p-1.5 bg-emerald-950 font-bold text-emerald-200">3200</td>
-              <td class="p-1.5 bg-emerald-900 font-bold text-emerald-200">6210</td>
-            </tr>
             <tr class="border-b border-emerald-800/40 text-emerald-200">
               <td class="p-2 font-bold text-left text-emerald-400">Par</td>
-              <td class="p-2">4</td><td class="p-2">4</td><td class="p-2">3</td><td class="p-2">4</td><td class="p-2">5</td><td class="p-2">4</td><td class="p-2">3</td><td class="p-2">5</td><td class="p-2">4</td>
-              <td class="p-2 bg-emerald-950/80 font-bold text-amber-300">36</td>
-              <td class="p-2">4</td><td class="p-2">4</td><td class="p-2">5</td><td class="p-2">3</td><td class="p-2">4</td><td class="p-2">4</td><td class="p-2">3</td><td class="p-2">4</td><td class="p-2">5</td>
-              <td class="p-2 bg-emerald-950/80 font-bold text-amber-300">36</td>
-              <td class="p-2 bg-emerald-900 font-extrabold text-amber-400">72</td>
             </tr>
             <tr id="scorecardRowScores" class="text-white font-bold border-b border-emerald-700/60">
               <td class="p-2 font-bold text-left text-white">P1 Score</td>
@@ -353,7 +686,7 @@
         </table>
       </div>
 
-      <div class="flex flex-wrap items-center justify-between gap-3 text-xs bg-emerald-950/60 p-3 rounded-2xl border border-emerald-600/30">
+      <div class="flex flex-wrap items-center justify-between gap-2.5 text-xs bg-emerald-950/60 p-3 rounded-2xl border border-emerald-600/30">
         <div class="flex items-center gap-2">
           <span class="inline-block w-4 h-4 rounded-full bg-yellow-400 text-emerald-950 text-[10px] font-black text-center leading-4">E</span> Eagle (-2)
           <span class="inline-block w-4 h-4 rounded-full bg-emerald-400 text-emerald-950 text-[10px] font-black text-center leading-4">B</span> Birdie (-1)
@@ -361,144 +694,69 @@
           <span class="inline-block w-4 h-4 rounded-full bg-orange-500 text-white text-[10px] font-black text-center leading-4">▲</span> Bogey (+1)
           <span class="inline-block w-4 h-4 rounded-full bg-red-600 text-white text-[10px] font-black text-center leading-4">■</span> Double+ (+2)
         </div>
-        <div class="text-right">
-          <span class="text-emerald-400">Difficulty: </span>
-          <span id="uiDifficultyBadge" class="font-bold text-white">Intermediate</span>
-        </div>
       </div>
     </div>
   </div>
 
-  <!-- Round Finished Final Results Modal -->
-  <div id="finalResultsModal" class="absolute inset-0 bg-black/90 backdrop-blur-lg flex items-center justify-center z-50 hidden p-4">
-    <div class="bg-gradient-to-b from-emerald-900 via-emerald-950 to-black border-2 border-amber-400/60 rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl text-center">
+  <!-- Final Results Modal -->
+  <div id="finalResultsModal" class="modal-backdrop hidden">
+    <div class="bg-gradient-to-b from-slate-900 via-emerald-950 to-black border-2 border-amber-400/60 rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl text-center">
       <div class="text-4xl mb-2">🏆</div>
-      <h2 class="text-3xl font-black text-white mb-1" id="finalModalHeader">Championship Complete!</h2>
-      <p class="text-emerald-300/80 text-sm mb-6">Pine Valley 18-Hole Championship</p>
+      <h2 class="text-2xl sm:text-3xl font-black text-white mb-1" id="finalModalHeader">Championship Complete!</h2>
+      <p class="text-emerald-300/80 text-xs sm:text-sm mb-5">Round Completed</p>
 
-      <!-- 1 Player Final Box -->
-      <div id="finalP1Container" class="bg-emerald-950/80 border border-emerald-500/40 rounded-2xl p-5 mb-6">
-        <div class="text-5xl font-black text-amber-300 mb-1" id="finalTotalScore">70</div>
-        <div class="text-emerald-300 font-bold text-lg mb-4" id="finalToPar">-2 (2 Under Par)</div>
+      <div id="finalP1Container" class="bg-emerald-950/80 border border-emerald-500/40 rounded-2xl p-4 sm:p-5 mb-5">
+        <div class="text-4xl sm:text-5xl font-black text-amber-300 mb-1" id="finalTotalScore">70</div>
+        <div class="text-emerald-300 font-bold text-sm sm:text-base mb-4" id="finalToPar">-2 (2 Under Par)</div>
 
-        <div class="grid grid-cols-4 gap-2 text-center text-xs border-t border-emerald-800/60 pt-4">
+        <div class="grid grid-cols-4 gap-2 text-center text-xs border-t border-emerald-800/60 pt-3">
           <div>
-            <div class="text-yellow-400 font-bold text-lg" id="finalEagles">0</div>
-            <div class="text-emerald-400/70">Eagles</div>
+            <div class="text-yellow-400 font-bold text-base sm:text-lg" id="finalEagles">0</div>
+            <div class="text-emerald-400/70 text-[10px]">Eagles</div>
           </div>
           <div>
-            <div class="text-emerald-400 font-bold text-lg" id="finalBirdies">4</div>
-            <div class="text-emerald-400/70">Birdies</div>
+            <div class="text-emerald-400 font-bold text-base sm:text-lg" id="finalBirdies">4</div>
+            <div class="text-emerald-400/70 text-[10px]">Birdies</div>
           </div>
           <div>
-            <div class="text-white font-bold text-lg" id="finalPars">11</div>
-            <div class="text-emerald-400/70">Pars</div>
+            <div class="text-white font-bold text-base sm:text-lg" id="finalPars">11</div>
+            <div class="text-emerald-400/70 text-[10px]">Pars</div>
           </div>
           <div>
-            <div class="text-orange-400 font-bold text-lg" id="finalBogeys">3</div>
-            <div class="text-emerald-400/70">Bogeys</div>
+            <div class="text-orange-400 font-bold text-base sm:text-lg" id="finalBogeys">3</div>
+            <div class="text-emerald-400/70 text-[10px]">Bogeys</div>
           </div>
         </div>
       </div>
 
-      <!-- 2 Player Winner / Match Summary Box -->
-      <div id="final2PContainer" class="hidden bg-emerald-950/80 border border-emerald-500/40 rounded-2xl p-5 mb-6">
-        <div class="text-2xl font-black text-amber-300 mb-3" id="finalWinnerBanner">Player 1 Wins!</div>
-        <div class="grid grid-cols-2 gap-4 text-center border-t border-emerald-800/60 pt-3">
-          <div class="bg-emerald-900/40 p-3 rounded-xl border border-sky-500/40">
+      <div id="final2PContainer" class="hidden bg-emerald-950/80 border border-emerald-500/40 rounded-2xl p-4 sm:p-5 mb-5">
+        <div class="text-xl sm:text-2xl font-black text-amber-300 mb-3" id="finalWinnerBanner">Player 1 Wins!</div>
+        <div class="grid grid-cols-2 gap-3 text-center border-t border-emerald-800/60 pt-3">
+          <div class="bg-emerald-900/40 p-2.5 rounded-xl border border-sky-500/40">
             <span class="text-xs font-bold text-sky-400 block">PLAYER 1</span>
-            <span class="text-3xl font-black text-white" id="finalP1Strokes">72</span>
+            <span class="text-2xl sm:text-3xl font-black text-white" id="finalP1Strokes">72</span>
             <span class="text-xs text-emerald-300 block font-semibold" id="finalP1ToPar">E</span>
           </div>
-          <div class="bg-emerald-900/40 p-3 rounded-xl border border-amber-500/40">
+          <div class="bg-emerald-900/40 p-2.5 rounded-xl border border-amber-500/40">
             <span class="text-xs font-bold text-amber-400 block">PLAYER 2</span>
-            <span class="text-3xl font-black text-white" id="finalP2Strokes">74</span>
+            <span class="text-2xl sm:text-3xl font-black text-white" id="finalP2Strokes">74</span>
             <span class="text-xs text-emerald-300 block font-semibold" id="finalP2ToPar">+2</span>
           </div>
         </div>
       </div>
 
-      <div class="bg-emerald-900/40 rounded-xl p-3 mb-6 text-sm text-emerald-200 border border-emerald-700/30">
-        Tour Rating: <strong id="finalRatingBadge" class="text-amber-300 font-black text-base">Scratch Golfer</strong>
+      <div class="bg-emerald-900/40 rounded-xl p-3 mb-5 text-xs sm:text-sm text-emerald-200 border border-emerald-700/30">
+        Tour Rating: <strong id="finalRatingBadge" class="text-amber-300 font-black text-sm sm:text-base">Scratch Golfer</strong>
       </div>
 
-      <button id="btnRestartRound" class="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 text-emerald-950 font-black text-base shadow-xl transition active:scale-95">
+      <button id="btnRestartRound" class="w-full py-3 px-6 rounded-2xl bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 text-emerald-950 font-black text-sm sm:text-base shadow-xl transition active:scale-95">
         Play Another Round ⟳
       </button>
     </div>
   </div>
 
-  <!-- Welcome / Mode Selection Modal -->
-  <div id="welcomeModal" class="absolute inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center z-50 p-4">
-    <div class="bg-gradient-to-b from-emerald-900 to-emerald-950 border border-emerald-500/50 rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl text-center">
-      <div class="text-5xl mb-2">⛳</div>
-      <h1 class="text-3xl sm:text-4xl font-black text-white tracking-tight mb-2">Fairway Classic</h1>
-      <p class="text-emerald-300/80 text-sm mb-4">Championship 18-Hole Tour with authentic distances, dynamic sweet-spot swing meter, real ballistics, wind, and green contour breaks.</p>
-
-      <!-- Game Mode Selection -->
-      <div class="text-left mb-4">
-        <label class="block text-xs uppercase font-bold text-emerald-400 mb-2">Select Game Mode:</label>
-        <div class="grid grid-cols-2 gap-2">
-          <label class="flex items-center p-2.5 rounded-xl bg-emerald-950/60 border border-emerald-700/40 cursor-pointer hover:border-emerald-400 transition">
-            <input type="radio" name="gameMode" value="1P" checked class="w-4 h-4 text-emerald-500" />
-            <div class="ml-2.5">
-              <span class="block text-sm font-bold text-white">Single Player</span>
-              <span class="block text-[11px] text-emerald-300/70">Solo 18-hole round</span>
-            </div>
-          </label>
-          <label class="flex items-center p-2.5 rounded-xl bg-emerald-950/60 border border-emerald-700/40 cursor-pointer hover:border-emerald-400 transition">
-            <input type="radio" name="gameMode" value="2P" class="w-4 h-4 text-emerald-500" />
-            <div class="ml-2.5">
-              <span class="block text-sm font-bold text-white">2-Player Match</span>
-              <span class="block text-[11px] text-emerald-300/70">Turn-by-turn pass & play</span>
-            </div>
-          </label>
-        </div>
-      </div>
-
-      <div class="text-left mb-5">
-        <label class="block text-xs uppercase font-bold text-emerald-400 mb-2">Select Difficulty:</label>
-        <div class="space-y-2">
-          <label class="flex items-center p-2 rounded-xl bg-emerald-950/60 border border-emerald-700/40 cursor-pointer hover:border-emerald-400 transition">
-            <input type="radio" name="difficulty" value="beginner" class="w-4 h-4 text-emerald-500" />
-            <div class="ml-3">
-              <span class="block text-xs font-bold text-white">Beginner</span>
-              <span class="block text-[11px] text-emerald-300/70">Larger sweet spot, gentler breezes, forgiving rough.</span>
-            </div>
-          </label>
-          <label class="flex items-center p-2 rounded-xl bg-emerald-950/60 border border-emerald-700/40 cursor-pointer hover:border-emerald-400 transition">
-            <input type="radio" name="difficulty" value="intermediate" checked class="w-4 h-4 text-emerald-500" />
-            <div class="ml-3">
-              <span class="block text-xs font-bold text-white">Intermediate (Championship)</span>
-              <span class="block text-[11px] text-emerald-300/70">Standard needle, realistic winds & penalties.</span>
-            </div>
-          </label>
-          <label class="flex items-center p-2 rounded-xl bg-emerald-950/60 border border-emerald-700/40 cursor-pointer hover:border-emerald-400 transition">
-            <input type="radio" name="difficulty" value="pro" class="w-4 h-4 text-emerald-500" />
-            <div class="ml-3">
-              <span class="block text-xs font-bold text-white">Tour Pro</span>
-              <span class="block text-[11px] text-emerald-300/70">Fast swing needle, tight sweet spot & gusty wind.</span>
-            </div>
-          </label>
-        </div>
-      </div>
-
-      <div class="flex flex-col gap-2.5">
-        <button id="btnStartGame" class="w-full py-3 px-6 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-300 hover:from-emerald-300 hover:to-teal-200 text-emerald-950 font-black text-base shadow-xl transition active:scale-95">
-          Tee Off Now 🏌️‍♂️
-        </button>
-        <button id="btnOpenPracticeFromWelcome" class="w-full py-2.5 px-6 rounded-2xl bg-emerald-950/90 hover:bg-emerald-900 border border-emerald-600/40 text-emerald-200 font-bold text-xs transition">
-          🎯 Warm Up at Practice Range / Putting Green
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- GAME JAVASCRIPT ENGINE -->
   <script>
-    /* =========================================================================
-       AUDIO SYNTHESIZER (Web Audio API - 100% Procedural)
-       ========================================================================= */
+    /* Web Audio Procedural Synthesizer */
     class GolfAudioEngine {
       constructor() {
         this.ctx = null;
@@ -668,6 +926,7 @@
     }
     const audio = new GolfAudioEngine();
 
+    /* Clubs Definition */
     const CLUBS = [
       { id: '1W', name: 'Driver',         type: 'wood',   baseDist: 260, loft: 12, rollDist: 28 },
       { id: '3W', name: '3 Wood',         type: 'wood',   baseDist: 230, loft: 15, rollDist: 20 },
@@ -682,367 +941,257 @@
       { id: 'PT', name: 'Putter',         type: 'putter', baseDist: 35,  loft: 3,  rollDist: 0 }
     ];
 
-    const COURSE_HOLES = [
+    /* Official 18 Holes based on aerial map */
+    const OFFICIAL_HOLES = [
       {
-        num: 1, par: 4, name: "Hole 1",
-        tee: { x: 580, y: 940 },
-        green: { x: 730, y: 805, r: 24 },
-        pin: { x: 732, y: 801 },
+        num: 1, par: 4, name: "Gentle Pines",
+        tee: { x: 575, y: 920 }, green: { x: 720, y: 810, r: 22 }, pin: { x: 722, y: 808 },
         slope: { dir: Math.PI * 0.7, mag: 1.4 },
         fairwaySegments: [
-          { x1: 580, y1: 910, x2: 630, y2: 870, width: 52 },
-          { x1: 630, y1: 870, x2: 720, y2: 815, width: 50 }
+          { x1: 585, y1: 915, x2: 640, y2: 890, width: 50 },
+          { x1: 640, y1: 890, x2: 700, y2: 825, width: 46 }
         ],
-        bunkers: [{ x: 700, y: 825, rx: 14, ry: 18 }],
+        bunkers: [{ x: 565, y: 900, rx: 12, ry: 16 }, { x: 725, y: 835, rx: 14, ry: 18 }],
         water: [],
-        trees: [{ x: 540, y: 880, r: 24 }, { x: 670, y: 890, r: 24 }]
+        trees: [{ x: 520, y: 890, r: 22 }, { x: 620, y: 940, r: 24 }, { x: 670, y: 790, r: 24 }, { x: 740, y: 770, r: 26 }]
       },
       {
-        num: 2, par: 4, name: "Hole 2",
-        tee: { x: 550, y: 920 },
-        green: { x: 440, y: 735, r: 25 },
-        pin: { x: 438, y: 730 },
+        num: 2, par: 4, name: "Dogleg North",
+        tee: { x: 515, y: 915 }, green: { x: 440, y: 745, r: 24 }, pin: { x: 440, y: 740 },
         slope: { dir: Math.PI * 0.3, mag: 1.6 },
         fairwaySegments: [
-          { x1: 540, y1: 890, x2: 480, y2: 810, width: 56 },
-          { x1: 480, y1: 810, x2: 440, y2: 745, width: 52 }
+          { x1: 500, y1: 900, x2: 450, y2: 840, width: 50 },
+          { x1: 450, y1: 840, x2: 440, y2: 765, width: 48 }
         ],
-        bunkers: [{ x: 415, y: 755, rx: 16, ry: 24 }, { x: 465, y: 825, rx: 16, ry: 20 }],
+        bunkers: [{ x: 415, y: 775, rx: 18, ry: 26 }],
         water: [],
-        trees: [{ x: 400, y: 850, r: 26 }, { x: 520, y: 840, r: 26 }]
+        trees: [{ x: 480, y: 860, r: 24 }, { x: 400, y: 830, r: 26 }, { x: 410, y: 720, r: 24 }]
       },
       {
-        num: 3, par: 3, name: "Hole 3",
-        tee: { x: 470, y: 755 },
-        green: { x: 480, y: 715, r: 21 },
-        pin: { x: 482, y: 712 },
-        slope: { dir: Math.PI * 1.1, mag: 1.8 },
-        fairwaySegments: [{ x1: 470, y1: 750, x2: 480, y2: 720, width: 42 }],
-        bunkers: [{ x: 460, y: 710, rx: 10, ry: 14 }],
-        water: [{ x: 518, y: 760, rx: 16, ry: 40 }],
-        trees: [{ x: 440, y: 710, r: 22 }]
+        num: 3, par: 3, name: "Pond View",
+        tee: { x: 485, y: 745 }, green: { x: 480, y: 715, r: 20 }, pin: { x: 480, y: 712 },
+        slope: { dir: Math.PI * 1.2, mag: 1.8 },
+        fairwaySegments: [{ x1: 485, y1: 740, x2: 480, y2: 720, width: 36 }],
+        bunkers: [], water: [{ x: 515, y: 740, rx: 14, ry: 38 }],
+        trees: [{ x: 450, y: 700, r: 22 }, { x: 510, y: 680, r: 22 }]
       },
       {
-        num: 4, par: 4, name: "Hole 4",
-        tee: { x: 535, y: 775 },
-        green: { x: 890, y: 765, r: 24 },
-        pin: { x: 892, y: 761 },
+        num: 4, par: 4, name: "Water Corridor",
+        tee: { x: 690, y: 735 }, green: { x: 535, y: 760, r: 24 }, pin: { x: 533, y: 758 },
+        slope: { dir: Math.PI * 0.8, mag: 1.5 },
+        fairwaySegments: [
+          { x1: 675, y1: 740, x2: 605, y2: 760, width: 54 },
+          { x1: 605, y1: 760, x2: 545, y2: 760, width: 48 }
+        ],
+        bunkers: [{ x: 675, y: 770, rx: 16, ry: 22 }, { x: 595, y: 785, rx: 18, ry: 24 }],
+        water: [{ x: 515, y: 760, rx: 14, ry: 40 }],
+        trees: [{ x: 640, y: 710, r: 24 }, { x: 720, y: 760, r: 24 }]
+      },
+      {
+        num: 5, par: 5, name: "Tree Line Ridge",
+        tee: { x: 725, y: 440 }, green: { x: 480, y: 435, r: 25 }, pin: { x: 478, y: 432 },
+        slope: { dir: Math.PI * 0.9, mag: 1.4 },
+        fairwaySegments: [
+          { x1: 710, y1: 440, x2: 590, y2: 445, width: 56 },
+          { x1: 590, y1: 445, x2: 495, y2: 435, width: 50 }
+        ],
+        bunkers: [], water: [],
+        trees: [{ x: 740, y: 410, r: 28 }, { x: 600, y: 410, r: 28 }, { x: 460, y: 410, r: 28 }]
+      },
+      {
+        num: 6, par: 4, name: "Central Lake",
+        tee: { x: 650, y: 320 }, green: { x: 475, y: 340, r: 24 }, pin: { x: 472, y: 338 },
+        slope: { dir: Math.PI * 1.5, mag: 1.7 },
+        fairwaySegments: [
+          { x1: 635, y1: 325, x2: 565, y2: 340, width: 54 },
+          { x1: 565, y1: 340, x2: 490, y2: 340, width: 48 }
+        ],
+        bunkers: [{ x: 635, y: 290, rx: 16, ry: 24 }],
+        water: [{ x: 590, y: 320, rx: 16, ry: 50 }],
+        trees: [{ x: 440, y: 310, r: 26 }, { x: 670, y: 340, r: 26 }]
+      },
+      {
+        num: 7, par: 3, name: "Lakeside Target",
+        tee: { x: 635, y: 220 }, green: { x: 505, y: 225, r: 22 }, pin: { x: 505, y: 222 },
+        slope: { dir: Math.PI * 0.4, mag: 1.6 },
+        fairwaySegments: [{ x1: 620, y1: 220, x2: 520, y2: 225, width: 42 }],
+        bunkers: [], water: [{ x: 565, y: 200, rx: 55, ry: 24 }],
+        trees: [{ x: 460, y: 210, r: 26 }, { x: 650, y: 240, r: 24 }]
+      },
+      {
+        num: 8, par: 5, name: "North Ridge",
+        tee: { x: 835, y: 130 }, green: { x: 450, y: 140, r: 26 }, pin: { x: 448, y: 138 },
+        slope: { dir: Math.PI * 1.1, mag: 1.3 },
+        fairwaySegments: [
+          { x1: 815, y1: 135, x2: 670, y2: 120, width: 58 },
+          { x1: 670, y1: 120, x2: 540, y2: 155, width: 54 },
+          { x1: 540, y1: 155, x2: 465, y2: 140, width: 50 }
+        ],
+        bunkers: [{ x: 815, y: 110, rx: 16, ry: 20 }, { x: 715, y: 160, rx: 18, ry: 25 }, { x: 735, y: 180, rx: 16, ry: 22 }],
+        water: [{ x: 495, y: 120, rx: 32, ry: 22 }],
+        trees: [{ x: 860, y: 80, r: 28 }, { x: 600, y: 70, r: 30 }, { x: 400, y: 120, r: 30 }]
+      },
+      {
+        num: 9, par: 4, name: "Clubhouse Bound",
+        tee: { x: 885, y: 180 }, green: { x: 890, y: 685, r: 24 }, pin: { x: 890, y: 690 },
         slope: { dir: Math.PI * 0.5, mag: 1.5 },
         fairwaySegments: [
-          { x1: 550, y1: 775, x2: 710, y2: 770, width: 58 },
-          { x1: 710, y1: 770, x2: 880, y2: 765, width: 54 }
+          { x1: 885, y1: 210, x2: 920, y2: 370, width: 52 },
+          { x1: 920, y1: 370, x2: 895, y2: 520, width: 50 },
+          { x1: 895, y1: 520, x2: 890, y2: 665, width: 48 }
         ],
-        bunkers: [{ x: 875, y: 785, rx: 18, ry: 12 }, { x: 680, y: 790, rx: 16, ry: 18 }],
-        water: [{ x: 518, y: 760, rx: 16, ry: 40 }],
-        trees: [{ x: 620, y: 730, r: 25 }, { x: 780, y: 730, r: 25 }]
-      },
-      {
-        num: 5, par: 5, name: "Hole 5",
-        tee: { x: 1140, y: 410 },
-        green: { x: 500, y: 405, r: 26 },
-        pin: { x: 496, y: 402 },
-        slope: { dir: Math.PI * 1.5, mag: 1.3 },
-        fairwaySegments: [
-          { x1: 1120, y1: 410, x2: 800, y2: 410, width: 64 },
-          { x1: 800, y1: 410, x2: 515, y2: 405, width: 58 }
-        ],
-        bunkers: [{ x: 530, y: 425, rx: 16, ry: 12 }],
+        bunkers: [{ x: 920, y: 645, rx: 16, ry: 28 }, { x: 920, y: 680, rx: 16, ry: 24 }],
         water: [],
-        trees: [{ x: 850, y: 450, r: 26 }, { x: 680, y: 450, r: 26 }]
+        trees: [{ x: 940, y: 220, r: 26 }, { x: 950, y: 420, r: 28 }, { x: 950, y: 620, r: 28 }]
       },
       {
-        num: 6, par: 4, name: "Hole 6",
-        tee: { x: 480, y: 310 },
-        green: { x: 820, y: 305, r: 25 },
-        pin: { x: 822, y: 302 },
-        slope: { dir: Math.PI * 0.2, mag: 1.5 },
+        num: 10, par: 4, name: "Plateau Run",
+        tee: { x: 690, y: 525 }, green: { x: 465, y: 505, r: 24 }, pin: { x: 463, y: 502 },
+        slope: { dir: Math.PI * 0.6, mag: 1.5 },
         fairwaySegments: [
-          { x1: 500, y1: 310, x2: 560, y2: 310, width: 50 },
-          { x1: 720, y1: 305, x2: 810, y2: 305, width: 52 }
+          { x1: 675, y1: 525, x2: 575, y2: 515, width: 56 },
+          { x1: 575, y1: 515, x2: 480, y2: 505, width: 50 }
         ],
-        bunkers: [{ x: 825, y: 280, rx: 14, ry: 14 }],
-        water: [{ x: 630, y: 310, rx: 50, ry: 70 }],
-        trees: [{ x: 510, y: 260, r: 24 }, { x: 760, y: 260, r: 24 }]
-      },
-      {
-        num: 7, par: 3, name: "Hole 7",
-        tee: { x: 500, y: 210 },
-        green: { x: 670, y: 210, r: 22 },
-        pin: { x: 672, y: 206 },
-        slope: { dir: Math.PI * 0.8, mag: 1.7 },
-        fairwaySegments: [
-          { x1: 510, y1: 210, x2: 540, y2: 210, width: 42 },
-          { x1: 630, y1: 210, x2: 665, y2: 210, width: 44 }
-        ],
-        bunkers: [],
-        water: [{ x: 585, y: 210, rx: 42, ry: 32 }],
-        trees: [{ x: 480, y: 160, r: 24 }, { x: 700, y: 160, r: 24 }]
-      },
-      {
-        num: 8, par: 5, name: "Hole 8",
-        tee: { x: 460, y: 105 },
-        green: { x: 1320, y: 110, r: 27 },
-        pin: { x: 1322, y: 106 },
-        slope: { dir: Math.PI * 0.6, mag: 1.4 },
-        fairwaySegments: [
-          { x1: 480, y1: 105, x2: 880, y2: 95, width: 68 },
-          { x1: 880, y1: 95, x2: 1305, y2: 110, width: 62 }
-        ],
-        bunkers: [{ x: 1100, y: 130, rx: 22, ry: 15 }, { x: 1290, y: 85, rx: 16, ry: 14 }],
-        water: [{ x: 520, y: 100, rx: 38, ry: 26 }],
-        trees: [{ x: 700, y: 55, r: 26 }, { x: 1050, y: 55, r: 26 }]
-      },
-      {
-        num: 9, par: 4, name: "Hole 9",
-        tee: { x: 915, y: 695 },
-        green: { x: 880, y: 180, r: 24 },
-        pin: { x: 882, y: 176 },
-        slope: { dir: Math.PI * 1.3, mag: 1.5 },
-        fairwaySegments: [
-          { x1: 915, y1: 670, x2: 900, y2: 420, width: 56 },
-          { x1: 900, y1: 420, x2: 880, y2: 195, width: 54 }
-        ],
-        bunkers: [{ x: 920, y: 640, rx: 16, ry: 25 }],
+        bunkers: [{ x: 595, y: 550, rx: 16, ry: 20 }, { x: 620, y: 560, rx: 18, ry: 24 }, { x: 650, y: 565, rx: 18, ry: 22 }],
         water: [],
-        trees: [{ x: 950, y: 500, r: 26 }, { x: 940, y: 320, r: 26 }]
+        trees: [{ x: 420, y: 490, r: 26 }, { x: 710, y: 500, r: 26 }]
       },
       {
-        num: 10, par: 4, name: "Hole 10",
-        tee: { x: 480, y: 520 },
-        green: { x: 940, y: 535, r: 25 },
-        pin: { x: 942, y: 530 },
-        slope: { dir: Math.PI * 0.4, mag: 1.5 },
+        num: 11, par: 4, name: "Upper Meadow",
+        tee: { x: 385, y: 485 }, green: { x: 225, y: 475, r: 23 }, pin: { x: 225, y: 472 },
+        slope: { dir: Math.PI * 1.8, mag: 1.4 },
         fairwaySegments: [
-          { x1: 500, y1: 520, x2: 720, y2: 525, width: 62 },
-          { x1: 720, y1: 525, x2: 930, y2: 535, width: 58 }
+          { x1: 370, y1: 485, x2: 300, y2: 485, width: 52 },
+          { x1: 300, y1: 485, x2: 240, y2: 475, width: 48 }
         ],
-        bunkers: [{ x: 840, y: 565, rx: 20, ry: 15 }, { x: 890, y: 570, rx: 18, ry: 14 }],
-        water: [],
-        trees: [{ x: 440, y: 510, r: 24 }, { x: 700, y: 490, r: 24 }]
+        bunkers: [{ x: 280, y: 505, rx: 16, ry: 22 }], water: [],
+        trees: [{ x: 195, y: 460, r: 26 }, { x: 405, y: 460, r: 26 }]
       },
       {
-        num: 11, par: 4, name: "Hole 11",
-        tee: { x: 395, y: 495 },
-        green: { x: 230, y: 490, r: 24 },
-        pin: { x: 228, y: 488 },
-        slope: { dir: Math.PI * 1.7, mag: 1.4 },
+        num: 12, par: 5, name: "West Boundary",
+        tee: { x: 45, y: 920 }, green: { x: 65, y: 500, r: 26 }, pin: { x: 67, y: 495 },
+        slope: { dir: Math.PI * 0.2, mag: 1.4 },
         fairwaySegments: [
-          { x1: 380, y1: 495, x2: 300, y2: 492, width: 56 },
-          { x1: 300, y1: 492, x2: 240, y2: 490, width: 54 }
+          { x1: 50, y1: 900, x2: 60, y2: 730, width: 56 },
+          { x1: 60, y1: 730, x2: 65, y2: 525, width: 52 }
         ],
-        bunkers: [{ x: 285, y: 515, rx: 18, ry: 12 }],
-        water: [],
-        trees: [{ x: 200, y: 460, r: 24 }]
+        bunkers: [{ x: 35, y: 925, rx: 14, ry: 20 }, { x: 95, y: 780, rx: 16, ry: 26 }], water: [],
+        trees: [{ x: 15, y: 750, r: 28 }, { x: 15, y: 550, r: 28 }]
       },
       {
-        num: 12, par: 5, name: "Hole 12",
-        tee: { x: 65, y: 930 },
-        green: { x: 65, y: 510, r: 27 },
-        pin: { x: 64, y: 506 },
-        slope: { dir: Math.PI * 0.9, mag: 1.5 },
+        num: 13, par: 3, name: "South Corner",
+        tee: { x: 225, y: 955 }, green: { x: 50, y: 940, r: 22 }, pin: { x: 48, y: 938 },
+        slope: { dir: Math.PI * 1.3, mag: 1.7 },
+        fairwaySegments: [{ x1: 210, y1: 955, x2: 65, y2: 940, width: 42 }],
+        bunkers: [], water: [],
+        trees: [{ x: 250, y: 970, r: 24 }, { x: 130, y: 980, r: 26 }]
+      },
+      {
+        num: 14, par: 4, name: "Lake Bend",
+        tee: { x: 225, y: 920 }, green: { x: 165, y: 710, r: 24 }, pin: { x: 165, y: 706 },
+        slope: { dir: Math.PI * 0.9, mag: 1.6 },
         fairwaySegments: [
-          { x1: 65, y1: 900, x2: 65, y2: 700, width: 62 },
-          { x1: 65, y1: 700, x2: 65, y2: 525, width: 58 }
+          { x1: 215, y1: 900, x2: 175, y2: 835, width: 54 },
+          { x1: 175, y1: 835, x2: 165, y2: 730, width: 50 }
         ],
-        bunkers: [{ x: 42, y: 720, rx: 14, ry: 24 }],
-        water: [],
-        trees: [{ x: 25, y: 840, r: 24 }, { x: 25, y: 620, r: 24 }]
+        bunkers: [{ x: 135, y: 730, rx: 14, ry: 20 }, { x: 140, y: 890, rx: 16, ry: 26 }],
+        water: [{ x: 205, y: 820, rx: 32, ry: 32 }],
+        trees: [{ x: 110, y: 800, r: 26 }, { x: 250, y: 850, r: 26 }]
       },
       {
-        num: 13, par: 3, name: "Hole 13",
-        tee: { x: 65, y: 965 },
-        green: { x: 220, y: 965, r: 21 },
-        pin: { x: 222, y: 962 },
-        slope: { dir: Math.PI * 0.1, mag: 1.8 },
-        fairwaySegments: [{ x1: 75, y1: 965, x2: 210, y2: 965, width: 44 }],
-        bunkers: [{ x: 205, y: 945, rx: 14, ry: 10 }],
-        water: [],
-        trees: [{ x: 140, y: 935, r: 22 }]
+        num: 15, par: 4, name: "Approach Pond",
+        tee: { x: 360, y: 665 }, green: { x: 260, y: 730, r: 23 }, pin: { x: 258, y: 728 },
+        slope: { dir: Math.PI * 1.4, mag: 1.5 },
+        fairwaySegments: [{ x1: 350, y1: 675, x2: 275, y2: 725, width: 48 }],
+        bunkers: [{ x: 360, y: 720, rx: 14, ry: 20 }],
+        water: [{ x: 310, y: 730, rx: 24, ry: 20 }],
+        trees: [{ x: 380, y: 640, r: 24 }, { x: 220, y: 760, r: 26 }]
       },
       {
-        num: 14, par: 4, name: "Hole 14",
-        tee: { x: 190, y: 930 },
-        green: { x: 170, y: 720, r: 24 },
-        pin: { x: 168, y: 716 },
+        num: 16, par: 3, name: "Lake Crossing",
+        tee: { x: 175, y: 650 }, green: { x: 265, y: 615, r: 23 }, pin: { x: 268, y: 612 },
+        slope: { dir: Math.PI * 0.3, mag: 1.8 },
+        fairwaySegments: [{ x1: 190, y1: 645, x2: 255, y2: 620, width: 42 }],
+        bunkers: [{ x: 190, y: 665, rx: 14, ry: 18 }],
+        water: [{ x: 240, y: 655, rx: 22, ry: 32 }],
+        trees: [{ x: 145, y: 630, r: 24 }, { x: 290, y: 590, r: 24 }]
+      },
+      {
+        num: 17, par: 4, name: "Bunker Sweep",
+        tee: { x: 375, y: 565 }, green: { x: 225, y: 580, r: 24 }, pin: { x: 225, y: 578 },
         slope: { dir: Math.PI * 0.7, mag: 1.6 },
         fairwaySegments: [
-          { x1: 190, y1: 910, x2: 210, y2: 830, width: 54 },
-          { x1: 210, y1: 830, x2: 175, y2: 735, width: 52 }
+          { x1: 360, y1: 565, x2: 295, y2: 590, width: 52 },
+          { x1: 295, y1: 590, x2: 240, y2: 580, width: 48 }
         ],
-        bunkers: [{ x: 145, y: 735, rx: 14, ry: 18 }],
-        water: [{ x: 185, y: 830, rx: 38, ry: 38 }],
-        trees: [{ x: 120, y: 800, r: 24 }]
-      },
-      {
-        num: 15, par: 4, name: "Hole 15",
-        tee: { x: 380, y: 665 },
-        green: { x: 270, y: 735, r: 24 },
-        pin: { x: 272, y: 732 },
-        slope: { dir: Math.PI * 1.2, mag: 1.5 },
-        fairwaySegments: [
-          { x1: 370, y1: 675, x2: 325, y2: 705, width: 52 },
-          { x1: 325, y1: 705, x2: 280, y2: 730, width: 50 }
-        ],
-        bunkers: [{ x: 360, y: 725, rx: 14, ry: 14 }],
-        water: [{ x: 325, y: 730, rx: 25, ry: 25 }],
-        trees: [{ x: 400, y: 710, r: 24 }]
-      },
-      {
-        num: 16, par: 3, name: "Hole 16",
-        tee: { x: 280, y: 660 },
-        green: { x: 180, y: 660, r: 22 },
-        pin: { x: 182, y: 658 },
-        slope: { dir: Math.PI * 1.8, mag: 2.0 },
-        fairwaySegments: [
-          { x1: 270, y1: 660, x2: 255, y2: 660, width: 38 },
-          { x1: 200, y1: 660, x2: 185, y2: 660, width: 42 }
-        ],
-        bunkers: [{ x: 195, y: 685, rx: 14, ry: 10 }],
-        water: [{ x: 238, y: 665, rx: 24, ry: 34 }],
-        trees: [{ x: 230, y: 615, r: 22 }]
-      },
-      {
-        num: 17, par: 4, name: "Hole 17",
-        tee: { x: 390, y: 550 },
-        green: { x: 240, y: 585, r: 24 },
-        pin: { x: 242, y: 582 },
-        slope: { dir: Math.PI * 0.4, mag: 1.6 },
-        fairwaySegments: [
-          { x1: 375, y1: 555, x2: 310, y2: 575, width: 55 },
-          { x1: 310, y1: 575, x2: 250, y2: 585, width: 52 }
-        ],
-        bunkers: [{ x: 325, y: 590, rx: 16, ry: 12 }, { x: 230, y: 605, rx: 14, ry: 10 }],
+        bunkers: [{ x: 325, y: 570, rx: 14, ry: 18 }, { x: 360, y: 575, rx: 16, ry: 20 }],
         water: [],
-        trees: [{ x: 320, y: 530, r: 24 }]
+        trees: [{ x: 400, y: 540, r: 24 }, { x: 200, y: 560, r: 26 }]
       },
       {
-        num: 18, par: 5, name: "Hole 18",
-        tee: { x: 440, y: 620 },
-        green: { x: 980, y: 635, r: 28 },
-        pin: { x: 982, y: 632 },
-        slope: { dir: Math.PI * 1.4, mag: 1.5 },
+        num: 18, par: 5, name: "Homecoming",
+        tee: { x: 675, y: 640 }, green: { x: 425, y: 585, r: 26 }, pin: { x: 423, y: 582 },
+        slope: { dir: Math.PI * 1.5, mag: 1.5 },
         fairwaySegments: [
-          { x1: 460, y1: 620, x2: 700, y2: 625, width: 66 },
-          { x1: 700, y1: 625, x2: 970, y2: 635, width: 62 }
+          { x1: 660, y1: 635, x2: 550, y2: 630, width: 56 },
+          { x1: 550, y1: 630, x2: 445, y2: 590, width: 52 }
         ],
-        bunkers: [
-          { x: 740, y: 665, rx: 24, ry: 14 },
-          { x: 795, y: 670, rx: 26, ry: 14 },
-          { x: 850, y: 672, rx: 24, ry: 14 },
-          { x: 965, y: 665, rx: 16, ry: 12 }
-        ],
+        bunkers: [{ x: 665, y: 665, rx: 16, ry: 20 }, { x: 545, y: 650, rx: 18, ry: 24 }],
         water: [],
-        trees: [{ x: 550, y: 580, r: 26 }, { x: 780, y: 580, r: 26 }]
+        trees: [{ x: 700, y: 620, r: 26 }, { x: 390, y: 570, r: 26 }]
       }
     ];
 
     const PRACTICE_FACILITIES = {
       range: {
-        name: "Driving Range",
-        par: 0,
-        num: "DR",
-        tee: { x: 1022, y: 926 },
-        pin: { x: 1022, y: 751 }, // 175 yds default
-        green: { x: 1022, y: 751, r: 20 },
-        slope: { dir: 0, mag: 0 },
-        fairwaySegments: [
-          { x1: 1022, y1: 926, x2: 1022, y2: 640, width: 85 }
-        ],
-        bunkers: [],
-        water: [],
-        trees: [{ x: 970, y: 800, r: 18 }, { x: 1075, y: 800, r: 18 }],
-        rangeTargets: [
-          { dist: 75,  y: 926 - 75,  color: '#38bdf8' },
-          { dist: 125, y: 926 - 125, color: '#4ade80' },
-          { dist: 175, y: 926 - 175, color: '#facc15' },
-          { dist: 225, y: 926 - 225, color: '#fb923c' },
-          { dist: 275, y: 926 - 275, color: '#f87171' }
+        num: 'R', par: 4, name: "Driving Range Practice",
+        tee: { x: 1020, y: 925 }, green: { x: 1020, y: 725, r: 26 }, pin: { x: 1020, y: 725 },
+        slope: { dir: 0, mag: 0.1 },
+        fairwaySegments: [{ x1: 1020, y1: 920, x2: 1020, y2: 640, width: 85 }],
+        bunkers: [], water: [],
+        trees: [{ x: 960, y: 880, r: 24 }, { x: 1080, y: 880, r: 24 }, { x: 960, y: 720, r: 24 }, { x: 1080, y: 720, r: 24 }],
+        targets: [
+          { dist: 75, y: 850, label: "75 YDS" }, { dist: 125, y: 800, label: "125 YDS" },
+          { dist: 175, y: 750, label: "175 YDS" }, { dist: 225, y: 700, label: "225 YDS" },
+          { dist: 275, y: 650, label: "275 YDS" }
         ]
       },
       putting: {
-        name: "Practice Putting Green",
-        par: 0,
-        num: "PG",
-        tee: { x: 1100, y: 855 },
-        pin: { x: 1100, y: 838 }, // ~17 yards / 51 ft
-        green: { x: 1100, y: 845, r: 24 },
-        slope: { dir: Math.PI * 0.6, mag: 1.5 },
-        fairwaySegments: [],
-        bunkers: [],
-        water: [],
-        trees: [{ x: 1130, y: 845, r: 14 }],
-        cups: [
-          { x: 1100, y: 851, distFt: 12 },
-          { x: 1104, y: 844, distFt: 33 },
-          { x: 1100, y: 838, distFt: 51 }
-        ]
+        num: 'P', par: 2, name: "Practice Putting Green",
+        tee: { x: 735, y: 835 }, green: { x: 735, y: 825, r: 30 }, pin: { x: 735, y: 818 },
+        slope: { dir: Math.PI * 0.4, mag: 1.6 },
+        fairwaySegments: [], bunkers: [], water: [],
+        trees: [{ x: 780, y: 800, r: 24 }, { x: 780, y: 860, r: 24 }]
       }
     };
 
     const state = {
       playMode: 'course', // 'course' | 'range' | 'putting'
-      gameMode: '1P',     // '1P' or '2P'
+      courseType: 'standard', // 'standard' | 'custom'
+      customCourseName: 'Eagle Crest Links',
+      customHoles: [],
+      gameMode: '1P',
       activePlayerIdx: 0,
       players: [
         {
-          id: 0,
-          name: 'Player 1',
-          color: '#ffffff',
-          accent: '#38bdf8',
-          scores: new Array(18).fill(null),
-          shotCount: 1,
-          selectedClubIdx: 0,
-          aimAngle: -Math.PI / 2,
-          ball: {
-            x: 0, y: 0, z: 0,
-            vx: 0, vy: 0, vz: 0,
-            inFlight: false, isRolling: false,
-            trail: [], lie: 'Tee',
-            lastGoodLie: { x: 0, y: 0 },
-            inCup: false, hasLipped: false
-          }
+          id: 0, name: 'Player 1', color: '#ffffff', accent: '#38bdf8',
+          scores: new Array(18).fill(null), shotCount: 1, selectedClubIdx: 0, aimAngle: -Math.PI / 2,
+          ball: { x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, inFlight: false, isRolling: false, trail: [], lie: 'Tee', lastGoodLie: { x: 0, y: 0 }, inCup: false, hasLipped: false }
         },
         {
-          id: 1,
-          name: 'Player 2',
-          color: '#fbbf24',
-          accent: '#f59e0b',
-          scores: new Array(18).fill(null),
-          shotCount: 1,
-          selectedClubIdx: 0,
-          aimAngle: -Math.PI / 2,
-          ball: {
-            x: 0, y: 0, z: 0,
-            vx: 0, vy: 0, vz: 0,
-            inFlight: false, isRolling: false,
-            trail: [], lie: 'Tee',
-            lastGoodLie: { x: 0, y: 0 },
-            inCup: false, hasLipped: false
-          }
+          id: 1, name: 'Player 2', color: '#fbbf24', accent: '#f59e0b',
+          scores: new Array(18).fill(null), shotCount: 1, selectedClubIdx: 0, aimAngle: -Math.PI / 2,
+          ball: { x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, inFlight: false, isRolling: false, trail: [], lie: 'Tee', lastGoodLie: { x: 0, y: 0 }, inCup: false, hasLipped: false }
         }
       ],
       difficulty: 'intermediate',
       currentHoleIdx: 0,
       isResetting: false,
-      camera: {
-        x: 0, y: 0,
-        targetX: 0, targetY: 0,
-        zoom: 1.0, targetZoom: 1.0,
-        mode: 'follow'
-      },
-      wind: {
-        angle: 0,
-        speed: 6
-      },
+      camera: { x: 0, y: 0, targetX: 0, targetY: 0, zoom: 1.0, targetZoom: 1.0, mode: 'follow' },
+      wind: { angle: 0, speed: 6 },
       swing: {
-        state: 'READY',
-        powerProgress: 0,
-        powerDir: 1,
-        selectedPower: 1,
-        snapProgress: 1.0,
-        sweetSpotLocation: 0.15,
-        sweetSpotWidth: 0.10,
-        speedMultiplier: 1.0
+        state: 'READY', powerProgress: 0, powerDir: 1, selectedPower: 1,
+        snapProgress: 1.0, sweetSpotLocation: 0.15, sweetSpotWidth: 0.10, speedMultiplier: 1.0
       },
       puttingGridDots: []
     };
@@ -1050,7 +1199,15 @@
     function getCurrentCourseEntity() {
       if (state.playMode === 'range') return PRACTICE_FACILITIES.range;
       if (state.playMode === 'putting') return PRACTICE_FACILITIES.putting;
-      return COURSE_HOLES[state.currentHoleIdx];
+      const holes = getCourseHoles();
+      return holes[state.currentHoleIdx] || holes[0];
+    }
+
+    function getCourseHoles() {
+      if (state.courseType === 'custom' && state.customHoles && state.customHoles.length > 0) {
+        return state.customHoles;
+      }
+      return OFFICIAL_HOLES;
     }
 
     function getActivePlayer() {
@@ -1060,10 +1217,122 @@
       return state.players[state.activePlayerIdx].ball;
     }
 
+    /* Course Architect Studio State */
+    const STORAGE_KEY = 'fairway_classic_custom_course_v1';
+
+    const builderState = {
+      courseName: 'Eagle Crest Links',
+      holeCount: 18,
+      selectedHoleIdx: 0,
+      activeTool: 'select', // 'select' | 'draw_fairway' | 'tee' | 'green' | 'bunker' | 'tree' | 'water' | 'hill' | 'erase'
+      fairwayBrushWidth: 54,
+      holes: [],
+      draggedItem: null,
+      isMouseDown: false,
+      lastDrawPos: null,
+      hoveredItem: null
+    };
+
+    function saveCourseToStorage() {
+      try {
+        const payload = {
+          courseName: builderState.courseName,
+          holeCount: builderState.holeCount,
+          selectedHoleIdx: builderState.selectedHoleIdx,
+          holes: builderState.holes,
+          savedAt: Date.now()
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+        flashAutoSaveIndicator();
+      } catch (err) {
+        console.warn('Unable to save to localStorage:', err);
+      }
+    }
+
+    function flashAutoSaveIndicator() {
+      const badge = document.getElementById('uiAutoSaveBadge');
+      if (badge) {
+        badge.innerText = '💾 Saved!';
+        badge.className = 'text-[10px] bg-emerald-600 text-white px-2 py-0.5 rounded-md font-black shadow transition';
+        setTimeout(() => {
+          badge.innerText = '💾 Auto-Saved';
+          badge.className = 'text-[10px] bg-emerald-900/90 text-emerald-300 px-2 py-0.5 rounded-md border border-emerald-500/40 font-semibold transition';
+        }, 1200);
+      }
+    }
+
+    function loadCourseFromStorage() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return false;
+        const data = JSON.parse(raw);
+        if (data && Array.isArray(data.holes) && data.holes.length > 0) {
+          builderState.courseName = data.courseName || 'Eagle Crest Links';
+          builderState.holeCount = data.holeCount || data.holes.length;
+          builderState.holes = data.holes;
+          builderState.selectedHoleIdx = Math.min(data.selectedHoleIdx || 0, data.holes.length - 1);
+          return true;
+        }
+      } catch (err) {
+        console.warn('Unable to load from localStorage:', err);
+      }
+      return false;
+    }
+
+    function createDefaultCustomHole(num, par = 4) {
+      const teeX = 500;
+      const teeY = 820;
+      const dist = par === 3 ? 165 : (par === 5 ? 515 : 375);
+      const greenX = teeX;
+      const greenY = teeY - dist;
+
+      return {
+        num: num,
+        par: par,
+        name: `Hole ${num}`,
+        tee: { x: teeX, y: teeY },
+        green: { x: greenX, y: greenY, r: par === 3 ? 22 : 25 },
+        pin: { x: greenX, y: greenY },
+        slope: { dir: Math.PI * 0.75, mag: 1.5 },
+        fairwaySegments: [
+          { x1: teeX, y1: teeY - 20, x2: greenX, y2: greenY + 20, width: 54 }
+        ],
+        bunkers: [
+          { id: 'b1', x: greenX - 28, y: greenY, rx: 14, ry: 18 },
+          { id: 'b2', x: greenX + 28, y: greenY, rx: 14, ry: 18 }
+        ],
+        water: [],
+        trees: [
+          { id: 't1', x: teeX - 50, y: teeY - 80, r: 24 },
+          { id: 't2', x: teeX + 50, y: teeY - 80, r: 24 }
+        ]
+      };
+    }
+
+    function initBuilderCourse(count = 18, forceReset = false) {
+      if (!forceReset && loadCourseFromStorage()) {
+        renderBuilderUI();
+        return;
+      }
+      builderState.holeCount = count;
+      builderState.holes = [];
+      for (let i = 1; i <= count; i++) {
+        const defaultPar = i % 6 === 3 ? 3 : (i % 6 === 5 ? 5 : 4);
+        builderState.holes.push(createDefaultCustomHole(i, defaultPar));
+      }
+      builderState.selectedHoleIdx = 0;
+      saveCourseToStorage();
+      renderBuilderUI();
+    }
+
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     const meterCanvas = document.getElementById('meterCanvas');
     const meterCtx = meterCanvas.getContext('2d');
+    const overviewCanvas = document.getElementById('overviewCanvas');
+    const overviewCtx = overviewCanvas ? overviewCanvas.getContext('2d') : null;
+    const builderPreviewCanvas = document.getElementById('builderPreviewCanvas');
+    const builderPreviewCtx = builderPreviewCanvas ? builderPreviewCanvas.getContext('2d') : null;
 
     const uiPlayerIndicator = document.getElementById('uiPlayerIndicator');
     const uiCurrentPlayerBadge = document.getElementById('uiCurrentPlayerBadge');
@@ -1085,28 +1354,26 @@
 
     const welcomeModal = document.getElementById('welcomeModal');
     const practiceModal = document.getElementById('practiceModal');
+    const courseBuilderModal = document.getElementById('courseBuilderModal');
+    const courseMapModal = document.getElementById('courseMapModal');
     const holeCompleteModal = document.getElementById('holeCompleteModal');
     const scorecardModal = document.getElementById('scorecardModal');
     const finalResultsModal = document.getElementById('finalResultsModal');
-    const courseMapModal = document.getElementById('courseMapModal');
-    const overviewCanvas = document.getElementById('overviewCanvas');
-    const overviewCtx = overviewCanvas.getContext('2d');
 
     function resizeCanvases() {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
-      if (meterCanvas.parentElement) {
-        meterCanvas.width = meterCanvas.parentElement.clientWidth;
-        meterCanvas.height = meterCanvas.parentElement.clientHeight;
+      meterCanvas.width = meterCanvas.parentElement.clientWidth;
+      meterCanvas.height = meterCanvas.parentElement.clientHeight;
+      if (builderPreviewCanvas && builderPreviewCanvas.parentElement) {
+        builderPreviewCanvas.width = builderPreviewCanvas.parentElement.clientWidth;
+        builderPreviewCanvas.height = builderPreviewCanvas.parentElement.clientHeight || 450;
       }
     }
     window.addEventListener('resize', resizeCanvases);
 
     function setDifficulty(level) {
       state.difficulty = level;
-      document.getElementById('uiDifficultyBadge').innerText =
-        level.charAt(0).toUpperCase() + level.slice(1);
-
       if (level === 'beginner') {
         state.swing.speedMultiplier = 0.75;
         state.swing.sweetSpotWidth = 0.16;
@@ -1125,10 +1392,713 @@
       state.swing.sweetSpotLocation = Number((minLoc + Math.random() * (maxLoc - minLoc)).toFixed(3));
     }
 
+    function renderBuilderUI() {
+      document.getElementById('builderCourseName').value = builderState.courseName;
+
+      document.querySelectorAll('.btnHoleCount').forEach(btn => {
+        const c = parseInt(btn.dataset.holes);
+        if (c === builderState.holeCount) {
+          btn.className = 'btnHoleCount px-2.5 py-1 rounded-lg border-2 border-indigo-400 bg-indigo-600 text-white font-black text-xs shadow';
+        } else {
+          btn.className = 'btnHoleCount px-2.5 py-1 rounded-lg border border-indigo-600/40 bg-indigo-950 text-indigo-300 font-bold text-xs hover:bg-indigo-900/60';
+        }
+      });
+
+      const pillsContainer = document.getElementById('builderHolePills');
+      pillsContainer.innerHTML = '';
+      builderState.holes.forEach((h, idx) => {
+        const pill = document.createElement('button');
+        pill.type = 'button';
+        const isSel = idx === builderState.selectedHoleIdx;
+        pill.className = `flex-shrink-0 px-3 py-1.5 rounded-xl text-xs font-black transition ${
+          isSel
+            ? 'bg-indigo-600 text-white border-2 border-indigo-300 shadow'
+            : 'bg-slate-900/90 text-indigo-300/80 border border-indigo-700/40 hover:bg-indigo-900/50'
+        }`;
+        pill.innerHTML = `<span>H${h.num}</span> <span class="text-[10px] text-amber-300 ml-1">P${h.par}</span>`;
+        pill.addEventListener('click', () => {
+          builderState.selectedHoleIdx = idx;
+          renderBuilderUI();
+        });
+        pillsContainer.appendChild(pill);
+      });
+
+      const curHole = builderState.holes[builderState.selectedHoleIdx];
+      if (!curHole) return;
+
+      const dist = Math.round(Math.hypot(curHole.pin.x - curHole.tee.x, curHole.pin.y - curHole.tee.y));
+      document.getElementById('builderActiveHoleBadge').innerText = `Hole ${curHole.num} (Par ${curHole.par})`;
+      document.getElementById('builderLiveYardage').innerText = `${dist} yds`;
+
+      const parBtns = [document.getElementById('btnPar3'), document.getElementById('btnPar4'), document.getElementById('btnPar5')];
+      parBtns.forEach((btn, idx) => {
+        const p = idx + 3;
+        if (p === curHole.par) {
+          btn.className = 'btnSelectPar px-2.5 py-1 rounded-lg border-2 border-indigo-400 bg-indigo-600 text-white font-black text-xs shadow';
+        } else {
+          btn.className = 'btnSelectPar px-2.5 py-1 rounded-lg border border-indigo-600/40 bg-indigo-950 text-indigo-300 font-bold text-xs hover:bg-indigo-900/60';
+        }
+      });
+
+      const totPar = builderState.holes.reduce((sum, h) => sum + h.par, 0);
+      document.getElementById('builderSummaryBadge').innerText = `${builderState.holeCount} Holes • Par ${totPar}`;
+
+      updateToolButtons();
+      renderBuilderStudioCanvas();
+    }
+
+    function updateToolButtons() {
+      const tools = [
+        { id: 'toolSelectMove', name: 'select', label: 'Mode: ✋ Move / Drag Elements' },
+        { id: 'toolDrawFairway', name: 'draw_fairway', label: 'Mode: 🖌️ Painting Fairway Corridor' },
+        { id: 'toolAddTee', name: 'tee', label: 'Mode: ⛳ Click canvas to reposition Tee Box' },
+        { id: 'toolAddGreen', name: 'green', label: 'Mode: 🎯 Click canvas to relocate Green & Cup' },
+        { id: 'toolAddBunker', name: 'bunker', label: 'Mode: 🏖️ Click canvas to place Sand Bunker' },
+        { id: 'toolAddTree', name: 'tree', label: 'Mode: 🌲 Click canvas to plant Tree' },
+        { id: 'toolAddWater', name: 'water', label: 'Mode: 💧 Click canvas to place Lake / Pond' },
+        { id: 'toolAddHill', name: 'hill', label: 'Mode: ⛰️ Click & drag arrow to set Hill break' },
+        { id: 'toolEraseElement', name: 'erase', label: 'Mode: 🗑️ Click item to Delete it' }
+      ];
+
+      tools.forEach(t => {
+        const btn = document.getElementById(t.id);
+        if (btn) {
+          if (builderState.activeTool === t.name) {
+            btn.classList.add('active');
+            document.getElementById('canvasActiveToolText').innerText = t.label;
+          } else {
+            btn.classList.remove('active');
+          }
+        }
+      });
+    }
+
+    function setBuilderTool(toolName) {
+      builderState.activeTool = toolName;
+      updateToolButtons();
+    }
+
+    function getStudioTransform(hole, w, h) {
+      // Bounding box around all elements plus padding
+      let minX = Math.min(hole.tee.x, hole.green.x, hole.pin.x);
+      let maxX = Math.max(hole.tee.x, hole.green.x, hole.pin.x);
+      let minY = Math.min(hole.tee.y, hole.green.y, hole.pin.y);
+      let maxY = Math.max(hole.tee.y, hole.green.y, hole.pin.y);
+
+      for (const seg of hole.fairwaySegments) {
+        minX = Math.min(minX, seg.x1, seg.x2);
+        maxX = Math.max(maxX, seg.x1, seg.x2);
+        minY = Math.min(minY, seg.y1, seg.y2);
+        maxY = Math.max(maxY, seg.y1, seg.y2);
+      }
+      for (const b of hole.bunkers) {
+        minX = Math.min(minX, b.x - b.rx); maxX = Math.max(maxX, b.x + b.rx);
+        minY = Math.min(minY, b.y - b.ry); maxY = Math.max(maxY, b.y + b.ry);
+      }
+      for (const wt of hole.water) {
+        minX = Math.min(minX, wt.x - wt.rx); maxX = Math.max(maxX, wt.x + wt.rx);
+        minY = Math.min(minY, wt.y - wt.ry); maxY = Math.max(maxY, wt.y + wt.ry);
+      }
+      for (const tr of hole.trees) {
+        minX = Math.min(minX, tr.x - tr.r); maxX = Math.max(maxX, tr.x + tr.r);
+        minY = Math.min(minY, tr.y - tr.r); maxY = Math.max(maxY, tr.y + tr.r);
+      }
+
+      minX -= 70; maxX += 70;
+      minY -= 50; maxY += 50;
+
+      const pad = 30;
+      const scaleX = (w - pad * 2) / (maxX - minX);
+      const scaleY = (h - pad * 2) / (maxY - minY);
+      const scale = Math.min(scaleX, scaleY);
+      const offX = (w - (maxX - minX) * scale) / 2;
+      const offY = (h - (maxY - minY) * scale) / 2;
+
+      return {
+        scale, offX, offY, minX, minY,
+        toScreen: (wx, wy) => ({ x: offX + (wx - minX) * scale, y: offY + (wy - minY) * scale }),
+        toWorld: (sx, sy) => ({ x: (sx - offX) / scale + minX, y: (sy - offY) / scale + minY })
+      };
+    }
+
+    function renderBuilderStudioCanvas() {
+      if (!builderPreviewCanvas || !builderPreviewCanvas.parentElement) return;
+      builderPreviewCanvas.width = builderPreviewCanvas.parentElement.clientWidth;
+      builderPreviewCanvas.height = builderPreviewCanvas.parentElement.clientHeight || 450;
+
+      const pCtx = builderPreviewCtx;
+      const w = builderPreviewCanvas.width;
+      const h = builderPreviewCanvas.height;
+      const hole = builderState.holes[builderState.selectedHoleIdx];
+      if (!hole) return;
+
+      const tf = getStudioTransform(hole, w, h);
+
+      // Deep Rough Base
+      pCtx.fillStyle = '#0f2918';
+      pCtx.fillRect(0, 0, w, h);
+
+      // Subtle Blueprint Grid Lines
+      pCtx.strokeStyle = 'rgba(99, 102, 241, 0.08)';
+      pCtx.lineWidth = 1;
+      const gridStep = 40;
+      for (let x = 0; x < w; x += gridStep) {
+        pCtx.beginPath(); pCtx.moveTo(x, 0); pCtx.lineTo(x, h); pCtx.stroke();
+      }
+      for (let y = 0; y < h; y += gridStep) {
+        pCtx.beginPath(); pCtx.moveTo(0, y); pCtx.lineTo(w, y); pCtx.stroke();
+      }
+
+      // Draw Fairway Corridors
+      pCtx.save();
+      pCtx.lineCap = 'round';
+      pCtx.lineJoin = 'round';
+      for (const seg of hole.fairwaySegments) {
+        const p1 = tf.toScreen(seg.x1, seg.y1);
+        const p2 = tf.toScreen(seg.x2, seg.y2);
+        
+        // Outer Fairway Border
+        pCtx.strokeStyle = '#275d34';
+        pCtx.lineWidth = Math.max(10, (seg.width + 12) * tf.scale);
+        pCtx.beginPath();
+        pCtx.moveTo(p1.x, p1.y);
+        pCtx.lineTo(p2.x, p2.y);
+        pCtx.stroke();
+
+        // Fairway Green Core
+        pCtx.strokeStyle = '#38834c';
+        pCtx.lineWidth = Math.max(8, seg.width * tf.scale);
+        pCtx.beginPath();
+        pCtx.moveTo(p1.x, p1.y);
+        pCtx.lineTo(p2.x, p2.y);
+        pCtx.stroke();
+      }
+      pCtx.restore();
+
+      // Water Hazards
+      for (const wt of hole.water) {
+        const p = tf.toScreen(wt.x, wt.y);
+        const rx = Math.max(5, wt.rx * tf.scale);
+        const ry = Math.max(5, wt.ry * tf.scale);
+
+        pCtx.fillStyle = '#0284c7';
+        pCtx.beginPath();
+        pCtx.ellipse(p.x, p.y, rx, ry, 0, 0, Math.PI * 2);
+        pCtx.fill();
+        pCtx.strokeStyle = '#38bdf8';
+        pCtx.lineWidth = 2;
+        pCtx.stroke();
+
+        // Label
+        pCtx.fillStyle = '#ffffff';
+        pCtx.font = 'bold 9px sans-serif';
+        pCtx.textAlign = 'center';
+        pCtx.fillText('Water', p.x, p.y + 3);
+      }
+
+      // Sand Bunkers
+      for (const b of hole.bunkers) {
+        const p = tf.toScreen(b.x, b.y);
+        const rx = Math.max(4, b.rx * tf.scale);
+        const ry = Math.max(4, b.ry * tf.scale);
+
+        pCtx.fillStyle = '#dfc896';
+        pCtx.beginPath();
+        pCtx.ellipse(p.x, p.y, rx, ry, 0, 0, Math.PI * 2);
+        pCtx.fill();
+        pCtx.strokeStyle = '#b69a65';
+        pCtx.lineWidth = 2;
+        pCtx.stroke();
+      }
+
+      // Putting Green & Cup
+      const pg = tf.toScreen(hole.green.x, hole.green.y);
+      const gr = Math.max(8, hole.green.r * tf.scale);
+
+      // Green Fringe
+      pCtx.fillStyle = '#2f7440';
+      pCtx.beginPath();
+      pCtx.arc(pg.x, pg.y, gr + 3, 0, Math.PI * 2);
+      pCtx.fill();
+
+      // Green Surface
+      pCtx.fillStyle = '#4ade80';
+      pCtx.beginPath();
+      pCtx.arc(pg.x, pg.y, gr, 0, Math.PI * 2);
+      pCtx.fill();
+      pCtx.strokeStyle = '#22c55e';
+      pCtx.lineWidth = 2;
+      pCtx.stroke();
+
+      // Green Hill Break Slope Arrow Vector
+      if (hole.slope) {
+        const arrowLen = gr * 0.9;
+        const arrowX = pg.x + Math.cos(hole.slope.dir) * arrowLen;
+        const arrowY = pg.y + Math.sin(hole.slope.dir) * arrowLen;
+
+        pCtx.strokeStyle = '#facc15';
+        pCtx.lineWidth = 2.5;
+        pCtx.beginPath();
+        pCtx.moveTo(pg.x, pg.y);
+        pCtx.lineTo(arrowX, arrowY);
+        pCtx.stroke();
+
+        pCtx.fillStyle = '#facc15';
+        pCtx.beginPath();
+        pCtx.arc(arrowX, arrowY, 4, 0, Math.PI * 2);
+        pCtx.fill();
+
+        pCtx.fillStyle = '#ffffff';
+        pCtx.font = 'bold 8px sans-serif';
+        pCtx.textAlign = 'center';
+        pCtx.fillText('Hill Slope', pg.x, pg.y - gr - 4);
+      }
+
+      // Flagstick Pin
+      const pp = tf.toScreen(hole.pin.x, hole.pin.y);
+      pCtx.fillStyle = '#111827';
+      pCtx.beginPath();
+      pCtx.arc(pp.x, pp.y, 3, 0, Math.PI * 2);
+      pCtx.fill();
+
+      pCtx.strokeStyle = '#ffffff';
+      pCtx.lineWidth = 2;
+      pCtx.beginPath();
+      pCtx.moveTo(pp.x, pp.y);
+      pCtx.lineTo(pp.x, pp.y - 18);
+      pCtx.stroke();
+
+      pCtx.fillStyle = '#ef4444';
+      pCtx.beginPath();
+      pCtx.moveTo(pp.x, pp.y - 18);
+      pCtx.lineTo(pp.x + 10, pp.y - 14);
+      pCtx.lineTo(pp.x, pp.y - 10);
+      pCtx.closePath();
+      pCtx.fill();
+
+      // Tee Box Spot
+      const pt = tf.toScreen(hole.tee.x, hole.tee.y);
+      pCtx.fillStyle = '#317644';
+      pCtx.beginPath();
+      pCtx.arc(pt.x, pt.y, 8, 0, Math.PI * 2);
+      pCtx.fill();
+
+      pCtx.fillStyle = '#38bdf8';
+      pCtx.beginPath();
+      pCtx.arc(pt.x - 4, pt.y, 2, 0, Math.PI * 2);
+      pCtx.arc(pt.x + 4, pt.y, 2, 0, Math.PI * 2);
+      pCtx.fill();
+      pCtx.strokeStyle = '#ffffff';
+      pCtx.lineWidth = 2;
+      pCtx.stroke();
+
+      pCtx.fillStyle = '#ffffff';
+      pCtx.font = 'bold 9px sans-serif';
+      pCtx.textAlign = 'center';
+      pCtx.fillText('TEE', pt.x, pt.y + 16);
+
+      // Trees
+      for (const tr of hole.trees) {
+        const p = tf.toScreen(tr.x, tr.y);
+        const r = Math.max(5, tr.r * tf.scale);
+
+        pCtx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        pCtx.beginPath();
+        pCtx.arc(p.x + 2, p.y + 2, r, 0, Math.PI * 2);
+        pCtx.fill();
+
+        pCtx.fillStyle = '#1e5e34';
+        pCtx.beginPath();
+        pCtx.arc(p.x, p.y, r, 0, Math.PI * 2);
+        pCtx.fill();
+        pCtx.strokeStyle = '#144023';
+        pCtx.lineWidth = 1.5;
+        pCtx.stroke();
+      }
+
+      // Selection Halo around Dragged or Hovered Object
+      const focusItem = builderState.draggedItem || builderState.hoveredItem;
+      if (focusItem) {
+        pCtx.strokeStyle = '#facc15';
+        pCtx.lineWidth = 2;
+        pCtx.setLineDash([4, 4]);
+        const pos = tf.toScreen(focusItem.x, focusItem.y);
+        const rad = focusItem.r ? focusItem.r * tf.scale + 6 : 18;
+        pCtx.beginPath();
+        pCtx.arc(pos.x, pos.y, Math.max(12, rad), 0, Math.PI * 2);
+        pCtx.stroke();
+        pCtx.setLineDash([]);
+      }
+
+      // Distance Line from Tee to Pin
+      pCtx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+      pCtx.setLineDash([3, 4]);
+      pCtx.lineWidth = 1.5;
+      pCtx.beginPath();
+      pCtx.moveTo(pt.x, pt.y);
+      pCtx.lineTo(pp.x, pp.y);
+      pCtx.stroke();
+      pCtx.setLineDash([]);
+
+      const dist = Math.round(Math.hypot(hole.pin.x - hole.tee.x, hole.pin.y - hole.tee.y));
+      pCtx.fillStyle = '#fde047';
+      pCtx.font = 'bold 11px sans-serif';
+      pCtx.textAlign = 'center';
+      pCtx.fillText(`${dist} YARDS (Tee to Pin)`, w / 2, h - 10);
+    }
+
+    function findStudioItemAt(screenX, screenY) {
+      const hole = builderState.holes[builderState.selectedHoleIdx];
+      if (!hole || !builderPreviewCanvas) return null;
+      const tf = getStudioTransform(hole, builderPreviewCanvas.width, builderPreviewCanvas.height);
+      const wPos = tf.toWorld(screenX, screenY);
+
+      // Check Pin
+      if (Math.hypot(wPos.x - hole.pin.x, wPos.y - hole.pin.y) < 14) {
+        return { type: 'pin', x: hole.pin.x, y: hole.pin.y, ref: hole.pin };
+      }
+      // Check Green / Hill Slope
+      if (Math.hypot(wPos.x - hole.green.x, wPos.y - hole.green.y) < hole.green.r) {
+        return { type: 'green', x: hole.green.x, y: hole.green.y, r: hole.green.r, ref: hole.green };
+      }
+      // Check Tee
+      if (Math.hypot(wPos.x - hole.tee.x, wPos.y - hole.tee.y) < 18) {
+        return { type: 'tee', x: hole.tee.x, y: hole.tee.y, ref: hole.tee };
+      }
+      // Check Bunkers
+      for (let i = 0; i < hole.bunkers.length; i++) {
+        const b = hole.bunkers[i];
+        if (Math.hypot(wPos.x - b.x, wPos.y - b.y) < Math.max(b.rx, b.ry) * 1.1) {
+          return { type: 'bunker', index: i, x: b.x, y: b.y, r: Math.max(b.rx, b.ry), ref: b };
+        }
+      }
+      // Check Water
+      for (let i = 0; i < hole.water.length; i++) {
+        const wt = hole.water[i];
+        if (Math.hypot(wPos.x - wt.x, wPos.y - wt.y) < Math.max(wt.rx, wt.ry) * 1.1) {
+          return { type: 'water', index: i, x: wt.x, y: wt.y, r: Math.max(wt.rx, wt.ry), ref: wt };
+        }
+      }
+      // Check Trees
+      for (let i = 0; i < hole.trees.length; i++) {
+        const tr = hole.trees[i];
+        if (Math.hypot(wPos.x - tr.x, wPos.y - tr.y) < tr.r * 1.1) {
+          return { type: 'tree', index: i, x: tr.x, y: tr.y, r: tr.r, ref: tr };
+        }
+      }
+
+      return null;
+    }
+
+    builderPreviewCanvas.addEventListener('pointerdown', (e) => {
+      builderState.isMouseDown = true;
+      const rect = builderPreviewCanvas.getBoundingClientRect();
+      const sx = e.clientX - rect.left;
+      const sy = e.clientY - rect.top;
+
+      const hole = builderState.holes[builderState.selectedHoleIdx];
+      if (!hole) return;
+      const tf = getStudioTransform(hole, builderPreviewCanvas.width, builderPreviewCanvas.height);
+      const wPos = tf.toWorld(sx, sy);
+
+      // Tool Switch Logic
+      if (builderState.activeTool === 'select') {
+        const hit = findStudioItemAt(sx, sy);
+        if (hit) {
+          builderState.draggedItem = hit;
+        }
+      } else if (builderState.activeTool === 'draw_fairway') {
+        builderState.lastDrawPos = { x: wPos.x, y: wPos.y };
+      } else if (builderState.activeTool === 'tee') {
+        hole.tee.x = Math.round(wPos.x);
+        hole.tee.y = Math.round(wPos.y);
+        setBuilderTool('select');
+        saveCourseToStorage();
+        renderBuilderUI();
+      } else if (builderState.activeTool === 'green') {
+        hole.green.x = Math.round(wPos.x);
+        hole.green.y = Math.round(wPos.y);
+        hole.pin.x = Math.round(wPos.x);
+        hole.pin.y = Math.round(wPos.y);
+        setBuilderTool('select');
+        saveCourseToStorage();
+        renderBuilderUI();
+      } else if (builderState.activeTool === 'bunker') {
+        hole.bunkers.push({ id: 'b_' + Date.now(), x: Math.round(wPos.x), y: Math.round(wPos.y), rx: 16, ry: 20 });
+        setBuilderTool('select');
+        saveCourseToStorage();
+        renderBuilderStudioCanvas();
+      } else if (builderState.activeTool === 'tree') {
+        hole.trees.push({ id: 't_' + Date.now(), x: Math.round(wPos.x), y: Math.round(wPos.y), r: 24 });
+        setBuilderTool('select');
+        saveCourseToStorage();
+        renderBuilderStudioCanvas();
+      } else if (builderState.activeTool === 'water') {
+        hole.water.push({ id: 'w_' + Date.now(), x: Math.round(wPos.x), y: Math.round(wPos.y), rx: 35, ry: 28 });
+        setBuilderTool('select');
+        saveCourseToStorage();
+        renderBuilderStudioCanvas();
+      } else if (builderState.activeTool === 'hill') {
+        const angle = Math.atan2(wPos.y - hole.green.y, wPos.x - hole.green.x);
+        hole.slope = { dir: angle, mag: 1.8 };
+        setBuilderTool('select');
+        saveCourseToStorage();
+        renderBuilderStudioCanvas();
+      } else if (builderState.activeTool === 'erase') {
+        const hit = findStudioItemAt(sx, sy);
+        if (hit) {
+          if (hit.type === 'bunker') hole.bunkers.splice(hit.index, 1);
+          else if (hit.type === 'water') hole.water.splice(hit.index, 1);
+          else if (hit.type === 'tree') hole.trees.splice(hit.index, 1);
+          saveCourseToStorage();
+        }
+        renderBuilderStudioCanvas();
+      }
+    });
+
+    window.addEventListener('pointermove', (e) => {
+      if (!courseBuilderModal || courseBuilderModal.classList.contains('hidden')) return;
+      const rect = builderPreviewCanvas.getBoundingClientRect();
+      const sx = e.clientX - rect.left;
+      const sy = e.clientY - rect.top;
+
+      const hole = builderState.holes[builderState.selectedHoleIdx];
+      if (!hole) return;
+      const tf = getStudioTransform(hole, builderPreviewCanvas.width, builderPreviewCanvas.height);
+      const wPos = tf.toWorld(sx, sy);
+
+      // Handle Moving Dragged Object
+      if (builderState.isMouseDown && builderState.draggedItem) {
+        const d = builderState.draggedItem;
+        if (d.type === 'pin') {
+          hole.pin.x = Math.round(wPos.x);
+          hole.pin.y = Math.round(wPos.y);
+        } else if (d.type === 'green') {
+          const dx = wPos.x - hole.green.x;
+          const dy = wPos.y - hole.green.y;
+          hole.green.x = Math.round(wPos.x);
+          hole.green.y = Math.round(wPos.y);
+          hole.pin.x += dx;
+          hole.pin.y += dy;
+        } else if (d.type === 'tee') {
+          hole.tee.x = Math.round(wPos.x);
+          hole.tee.y = Math.round(wPos.y);
+        } else if (d.type === 'bunker') {
+          hole.bunkers[d.index].x = Math.round(wPos.x);
+          hole.bunkers[d.index].y = Math.round(wPos.y);
+        } else if (d.type === 'water') {
+          hole.water[d.index].x = Math.round(wPos.x);
+          hole.water[d.index].y = Math.round(wPos.y);
+        } else if (d.type === 'tree') {
+          hole.trees[d.index].x = Math.round(wPos.x);
+          hole.trees[d.index].y = Math.round(wPos.y);
+        }
+
+        const dist = Math.round(Math.hypot(hole.pin.x - hole.tee.x, hole.pin.y - hole.tee.y));
+        document.getElementById('builderLiveYardage').innerText = `${dist} yds`;
+        renderBuilderStudioCanvas();
+        return;
+      }
+
+      // Handle Painting Fairway Path
+      if (builderState.isMouseDown && builderState.activeTool === 'draw_fairway' && builderState.lastDrawPos) {
+        const distMoved = Math.hypot(wPos.x - builderState.lastDrawPos.x, wPos.y - builderState.lastDrawPos.y);
+        if (distMoved >= 20) {
+          hole.fairwaySegments.push({
+            x1: Math.round(builderState.lastDrawPos.x),
+            y1: Math.round(builderState.lastDrawPos.y),
+            x2: Math.round(wPos.x),
+            y2: Math.round(wPos.y),
+            width: builderState.fairwayBrushWidth
+          });
+          builderState.lastDrawPos = { x: wPos.x, y: wPos.y };
+          renderBuilderStudioCanvas();
+        }
+        return;
+      }
+
+      // Hover feedback
+      if (!builderState.isMouseDown) {
+        const hit = findStudioItemAt(sx, sy);
+        builderState.hoveredItem = hit;
+        const hoverLabel = document.getElementById('canvasHoverObjText');
+        if (hit) {
+          hoverLabel.innerText = `Target: ${hit.type.toUpperCase()} (Drag to move)`;
+        } else {
+          hoverLabel.innerText = 'Hover over any item to drag';
+        }
+        renderBuilderStudioCanvas();
+      }
+    });
+
+    window.addEventListener('pointerup', () => {
+      if (builderState.isMouseDown) {
+        saveCourseToStorage();
+      }
+      builderState.isMouseDown = false;
+      builderState.draggedItem = null;
+      builderState.lastDrawPos = null;
+      renderBuilderStudioCanvas();
+    });
+
+    document.getElementById('builderCourseName').addEventListener('input', (e) => {
+      builderState.courseName = e.target.value.trim() || 'Custom Links';
+      saveCourseToStorage();
+    });
+
+    document.getElementById('btnPar3').addEventListener('click', () => {
+      builderState.holes[builderState.selectedHoleIdx].par = 3;
+      saveCourseToStorage();
+      renderBuilderUI();
+    });
+    document.getElementById('btnPar4').addEventListener('click', () => {
+      builderState.holes[builderState.selectedHoleIdx].par = 4;
+      saveCourseToStorage();
+      renderBuilderUI();
+    });
+    document.getElementById('btnPar5').addEventListener('click', () => {
+      builderState.holes[builderState.selectedHoleIdx].par = 5;
+      saveCourseToStorage();
+      renderBuilderUI();
+    });
+
+    document.getElementById('btnRandomizeCurrentHole').addEventListener('click', () => {
+      const num = builderState.selectedHoleIdx + 1;
+      const par = builderState.holes[builderState.selectedHoleIdx].par;
+      builderState.holes[builderState.selectedHoleIdx] = createDefaultCustomHole(num, par);
+      saveCourseToStorage();
+      renderBuilderUI();
+    });
+
+    document.querySelectorAll('.btnHoleCount').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const count = parseInt(e.currentTarget.dataset.holes);
+        initBuilderCourse(count, true);
+      });
+    });
+
+    const importExportModal = document.getElementById('importExportModal');
+    const importExportTextarea = document.getElementById('importExportTextarea');
+    const btnApplyImportData = document.getElementById('btnApplyImportData');
+    const importExportTitle = document.getElementById('importExportTitle');
+    const importExportDesc = document.getElementById('importExportDesc');
+
+    document.getElementById('btnExportCourse').addEventListener('click', () => {
+      const payload = {
+        courseName: builderState.courseName,
+        holeCount: builderState.holeCount,
+        holes: builderState.holes,
+        version: 1
+      };
+      importExportTextarea.value = JSON.stringify(payload);
+      importExportTitle.innerText = 'Export Course';
+      importExportDesc.innerText = 'Copy this save string to backup or share your course:';
+      btnApplyImportData.classList.add('hidden');
+      importExportModal.classList.remove('hidden');
+    });
+
+    document.getElementById('btnImportCourse').addEventListener('click', () => {
+      importExportTextarea.value = '';
+      importExportTitle.innerText = 'Import Course';
+      importExportDesc.innerText = 'Paste your previously exported course data string below:';
+      btnApplyImportData.classList.remove('hidden');
+      importExportModal.classList.remove('hidden');
+    });
+
+    document.getElementById('btnCloseImportExportModal').addEventListener('click', () => {
+      importExportModal.classList.add('hidden');
+    });
+
+    document.getElementById('btnCopyExportData').addEventListener('click', () => {
+      importExportTextarea.select();
+      document.execCommand('copy');
+      showToastBanner('Course data copied to clipboard! 📋', 'text-emerald-300 border-emerald-400');
+    });
+
+    btnApplyImportData.addEventListener('click', () => {
+      try {
+        const raw = importExportTextarea.value.trim();
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        if (parsed && Array.isArray(parsed.holes) && parsed.holes.length > 0) {
+          builderState.courseName = parsed.courseName || 'Imported Links';
+          builderState.holeCount = parsed.holeCount || parsed.holes.length;
+          builderState.holes = parsed.holes;
+          builderState.selectedHoleIdx = 0;
+          saveCourseToStorage();
+          renderBuilderUI();
+          importExportModal.classList.add('hidden');
+          showToastBanner(`Successfully loaded "${builderState.courseName}"! ⛳`, 'text-indigo-300 border-indigo-400');
+        }
+      } catch (e) {
+        showToastBanner('Invalid course code format.', 'text-red-300 border-red-500');
+      }
+    });
+
+    document.getElementById('toolSelectMove').addEventListener('click', () => setBuilderTool('select'));
+    document.getElementById('toolDrawFairway').addEventListener('click', () => setBuilderTool('draw_fairway'));
+    document.getElementById('toolAddTee').addEventListener('click', () => setBuilderTool('tee'));
+    document.getElementById('toolAddGreen').addEventListener('click', () => setBuilderTool('green'));
+    document.getElementById('toolAddBunker').addEventListener('click', () => setBuilderTool('bunker'));
+    document.getElementById('toolAddTree').addEventListener('click', () => setBuilderTool('tree'));
+    document.getElementById('toolAddWater').addEventListener('click', () => setBuilderTool('water'));
+    document.getElementById('toolAddHill').addEventListener('click', () => setBuilderTool('hill'));
+    document.getElementById('toolEraseElement').addEventListener('click', () => setBuilderTool('erase'));
+
+    document.getElementById('sliderFairwayWidth').addEventListener('input', (e) => {
+      builderState.fairwayBrushWidth = parseInt(e.target.value);
+      document.getElementById('uiFairwayWidthLabel').innerText = `${builderState.fairwayBrushWidth} yds`;
+    });
+
+    document.getElementById('btnClearFairways').addEventListener('click', () => {
+      const hole = builderState.holes[builderState.selectedHoleIdx];
+      if (hole) {
+        hole.fairwaySegments = [];
+        setBuilderTool('draw_fairway');
+        renderBuilderStudioCanvas();
+      }
+    });
+
+    function startCustomCoursePlay() {
+      courseBuilderModal.classList.add('hidden');
+      welcomeModal.classList.add('hidden');
+
+      state.courseType = 'custom';
+      state.customCourseName = document.getElementById('builderCourseName').value.trim() || 'Custom Links';
+      state.customHoles = builderState.holes.slice();
+
+      const count = builderState.holes.length;
+      state.players[0].scores = new Array(count).fill(null);
+      state.players[1].scores = new Array(count).fill(null);
+
+      audio.init();
+      initHole(0);
+      showToastBanner(`Teeing off on ${state.customCourseName}! (${count} Holes)`, "text-indigo-300 border-indigo-400");
+    }
+    document.getElementById('btnPlayCustomCourse').addEventListener('click', startCustomCoursePlay);
+
+    function openCourseBuilder() {
+      welcomeModal.classList.add('hidden');
+      audio.init();
+      initBuilderCourse(builderState.holeCount || 18);
+      courseBuilderModal.classList.remove('hidden');
+      resizeCanvases();
+      renderBuilderUI();
+    }
+    document.getElementById('btnCourseBuilder').addEventListener('click', openCourseBuilder);
+    document.getElementById('btnOpenBuilderFromWelcome').addEventListener('click', openCourseBuilder);
+    document.getElementById('btnCloseBuilderModal').addEventListener('click', () => courseBuilderModal.classList.add('hidden'));
+    document.getElementById('btnCancelBuilder').addEventListener('click', () => courseBuilderModal.classList.add('hidden'));
+
     function initHole(holeIdx) {
       state.playMode = 'course';
+      const holes = getCourseHoles();
+      if (holeIdx >= holes.length) {
+        showFinalResultsScreen();
+        return;
+      }
       state.currentHoleIdx = holeIdx;
-      const hole = COURSE_HOLES[holeIdx];
+      const hole = holes[holeIdx];
       state.isResetting = false;
 
       const count = state.gameMode === '2P' ? 2 : 1;
@@ -1177,12 +2147,13 @@
     }
 
     function initPracticeMode(mode) {
+      practiceModal.classList.add('hidden');
+      welcomeModal.classList.add('hidden');
       state.playMode = mode;
       state.isResetting = false;
-      state.activePlayerIdx = 0;
-      const facility = PRACTICE_FACILITIES[mode];
-      const p = getActivePlayer();
 
+      const facility = mode === 'range' ? PRACTICE_FACILITIES.range : PRACTICE_FACILITIES.putting;
+      const p = getActivePlayer();
       p.shotCount = 1;
       p.ball.x = facility.tee.x;
       p.ball.y = facility.tee.y;
@@ -1202,33 +2173,29 @@
       const dy = facility.pin.y - p.ball.y;
       p.aimAngle = Math.atan2(dy, dx);
 
-      if (mode === 'putting') {
-        p.selectedClubIdx = CLUBS.findIndex(c => c.id === 'PT');
-      } else {
-        p.selectedClubIdx = 0; // Driver
-      }
+      p.selectedClubIdx = mode === 'putting' ? CLUBS.findIndex(c => c.id === 'PT') : 0;
 
       state.camera.x = p.ball.x;
       state.camera.y = p.ball.y - 80;
       state.camera.targetX = state.camera.x;
       state.camera.targetY = state.camera.y;
-      state.camera.zoom = mode === 'putting' ? 1.6 : 1.0;
+      state.camera.zoom = mode === 'putting' ? 1.6 : 1.1;
       state.camera.targetZoom = state.camera.zoom;
 
+      generatePuttingDots(facility);
       randomizeSweetSpot();
       resetSwingMeter();
-      generatePuttingDots(facility);
       updateUI();
 
-      showToastBanner(`Loaded ${facility.name}!`, "text-amber-300 border-amber-400");
+      showToastBanner(`Entered ${facility.name}!`, "text-amber-300 border-amber-400");
     }
 
     function autoSelectBestClub() {
-      const entity = getCurrentCourseEntity();
+      const hole = getCurrentCourseEntity();
       const p = getActivePlayer();
-      const dist = Math.hypot(entity.pin.x - p.ball.x, entity.pin.y - p.ball.y);
+      const dist = Math.hypot(hole.pin.x - p.ball.x, hole.pin.y - p.ball.y);
       
-      if (p.ball.lie === 'Green' || state.playMode === 'putting') {
+      if (p.ball.lie === 'Green') {
         p.selectedClubIdx = CLUBS.findIndex(c => c.id === 'PT');
         return;
       }
@@ -1240,58 +2207,49 @@
       }
     }
 
-    function generatePuttingDots(entity) {
+    function generatePuttingDots(hole) {
       state.puttingGridDots = [];
-      const green = entity.green;
+      const green = hole.green;
       if (!green) return;
       const spacing = 3.5;
       for (let x = green.x - green.r; x <= green.x + green.r; x += spacing) {
         for (let y = green.y - green.r; y <= green.y + green.r; y += spacing) {
           if (Math.hypot(x - green.x, y - green.y) < green.r - 1.2) {
-            state.puttingGridDots.push({
-              x: x,
-              y: y,
-              phase: Math.random() * Math.PI * 2
-            });
+            state.puttingGridDots.push({ x, y, phase: Math.random() * Math.PI * 2 });
           }
         }
       }
     }
 
     function checkLie(x, y) {
-      const entity = getCurrentCourseEntity();
+      const hole = getCurrentCourseEntity();
 
-      // Green & Fringe evaluated first
-      if (entity.green) {
-        const dGreen = Math.hypot(x - entity.green.x, y - entity.green.y);
-        if (dGreen <= entity.green.r) return 'Green';
-        if (dGreen <= entity.green.r + 3.5) return 'Fringe';
+      if (hole.green) {
+        const dGreen = Math.hypot(x - hole.green.x, y - hole.green.y);
+        if (dGreen <= hole.green.r) return 'Green';
+        if (dGreen <= hole.green.r + 3.5) return 'Fringe';
       }
 
-      // Bunkers
-      for (const b of entity.bunkers) {
+      for (const b of hole.bunkers) {
         const dx = (x - b.x) / b.rx;
         const dy = (y - b.y) / b.ry;
         if (dx * dx + dy * dy <= 1.0) return 'Sand';
       }
 
-      // Water Hazards
-      for (const w of entity.water) {
+      for (const w of hole.water) {
         const dx = (x - w.x) / w.rx;
         const dy = (y - w.y) / w.ry;
         if (dx * dx + dy * dy <= 1.0) return 'Water';
       }
 
-      // Fairway corridors
-      for (const seg of entity.fairwaySegments) {
+      for (const seg of hole.fairwaySegments) {
         const dist = distToSegment({ x, y }, { x: seg.x1, y: seg.y1 }, { x: seg.x2, y: seg.y2 });
         if (dist <= seg.width / 2) return 'Fairway';
       }
 
-      // Tee box area
-      if (entity.tee && Math.hypot(x - entity.tee.x, y - entity.tee.y) < 16) return 'Tee';
+      if (hole.tee && Math.hypot(x - hole.tee.x, y - hole.tee.y) < 16) return 'Tee';
+      if (x < -300 || x > 3500 || y < -200 || y > 2000) return 'OB';
 
-      if (x < -200 || x > 3200 || y < -100 || y > 1500) return 'OB';
       return 'Rough';
     }
 
@@ -1310,15 +2268,9 @@
       state.swing.selectedPower = 1.0;
       state.swing.snapProgress = 1.0;
       const p = getActivePlayer();
-      if (state.playMode === 'range') {
-        swingPrompt.innerText = "Driving Range: Click or Press Space to Swing";
-      } else if (state.playMode === 'putting') {
-        swingPrompt.innerText = "Practice Green: Click or Press Space to Putt";
-      } else {
-        swingPrompt.innerText = state.gameMode === '2P' 
-          ? `${p.name}: Click or Press Space to Swing`
-          : "Click or Press Space to Swing";
-      }
+      swingPrompt.innerText = state.gameMode === '2P' 
+        ? `${p.name}: Click or Press Space to Swing`
+        : "Click or Press Space to Swing";
     }
 
     function handleSwingInput() {
@@ -1352,8 +2304,8 @@
       const p = getActivePlayer();
       const b = p.ball;
       const club = CLUBS[p.selectedClubIdx];
-      const entity = getCurrentCourseEntity();
-      const distToPin = Math.hypot(entity.pin.x - b.x, entity.pin.y - b.y);
+      const hole = getCurrentCourseEntity();
+      const distToPin = Math.hypot(hole.pin.x - b.x, hole.pin.y - b.y);
 
       const snapErr = s.snapProgress - s.sweetSpotLocation;
       const halfW = s.sweetSpotWidth / 2;
@@ -1362,7 +2314,6 @@
       let dispersionAngle = 0;
       let powerModifier = 1.0;
       let rollModifier = 1.0;
-
       const absErr = Math.abs(snapErr);
 
       if (absErr <= halfW) {
@@ -1450,7 +2401,7 @@
     }
 
     function showToastBanner(text, styleClasses) {
-      shotBannerContent.className = `bg-black/90 backdrop-blur-md border-2 font-black px-6 py-2 rounded-full shadow-2xl text-center text-sm sm:text-base tracking-wide flex items-center gap-2 ${styleClasses}`;
+      shotBannerContent.className = `bg-black/90 backdrop-blur-md border-2 font-black px-6 py-2 rounded-full shadow-2xl text-center text-xs sm:text-base tracking-wide flex items-center gap-2 ${styleClasses}`;
       shotBannerContent.innerHTML = `<span>${text}</span>`;
       shotBanner.style.opacity = '1';
       shotBanner.style.transform = 'translate(-50%, 0)';
@@ -1465,7 +2416,7 @@
     function updatePhysics() {
       const p = getActivePlayer();
       const b = p.ball;
-      const entity = getCurrentCourseEntity();
+      const hole = getCurrentCourseEntity();
 
       updateSwingMeterLogic();
 
@@ -1481,7 +2432,7 @@
         b.y += b.vy * dt;
         b.z += b.vz * dt;
 
-        for (const t of entity.trees) {
+        for (const t of hole.trees) {
           if (Math.hypot(b.x - t.x, b.y - t.y) < t.r && b.z < 16) {
             b.vx *= 0.25;
             b.vy *= 0.25;
@@ -1546,10 +2497,10 @@
         else if (currentLie === 'Rough') frictionDecel = 24.0;
         else if (currentLie === 'Sand') frictionDecel = 38.0;
 
-        if (currentLie === 'Green' && entity.slope) {
-          const slopePull = entity.slope.mag * 3.2;
-          b.vx += Math.cos(entity.slope.dir) * slopePull * dt;
-          b.vy += Math.sin(entity.slope.dir) * slopePull * dt;
+        if (currentLie === 'Green' && hole.slope) {
+          const slopePull = hole.slope.mag * 3.2;
+          b.vx += Math.cos(hole.slope.dir) * slopePull * dt;
+          b.vy += Math.sin(hole.slope.dir) * slopePull * dt;
         }
 
         const currentSpeed = Math.hypot(b.vx, b.vy);
@@ -1563,12 +2514,12 @@
         b.x += b.vx * dt;
         b.y += b.vy * dt;
 
-        const distToPin = Math.hypot(b.x - entity.pin.x, b.y - entity.pin.y);
+        const distToPin = Math.hypot(b.x - hole.pin.x, b.y - hole.pin.y);
         if (distToPin < 1.35) {
           if (currentSpeed < 8.0) {
             b.inCup = true;
-            b.x = entity.pin.x;
-            b.y = entity.pin.y;
+            b.x = hole.pin.x;
+            b.y = hole.pin.y;
             b.vx = 0;
             b.vy = 0;
             b.isRolling = false;
@@ -1577,7 +2528,7 @@
             return;
           } else if (!b.hasLipped) {
             b.hasLipped = true;
-            const deflectAngle = Math.atan2(b.y - entity.pin.y, b.x - entity.pin.x) + (Math.random() > 0.5 ? 0.6 : -0.6);
+            const deflectAngle = Math.atan2(b.y - hole.pin.y, b.x - hole.pin.x) + (Math.random() > 0.5 ? 0.6 : -0.6);
             const defSpeed = currentSpeed * 0.65;
             b.vx = Math.cos(deflectAngle) * defSpeed;
             b.vy = Math.sin(deflectAngle) * defSpeed;
@@ -1648,35 +2599,23 @@
     }
 
     function onShotFinished() {
-      const entity = getCurrentCourseEntity();
+      if (state.playMode === 'range') {
+        const carry = Math.round(Math.hypot(state.players[0].ball.x - PRACTICE_FACILITIES.range.tee.x, state.players[0].ball.y - PRACTICE_FACILITIES.range.tee.y));
+        showToastBanner(`Driving Range: ${carry} yds! 🏌️‍♂️`, "text-amber-300 border-amber-400");
+        setTimeout(() => initPracticeMode('range'), 1400);
+        return;
+      }
+      if (state.playMode === 'putting') {
+        const dist = (Math.hypot(state.players[0].ball.x - PRACTICE_FACILITIES.putting.pin.x, state.players[0].ball.y - PRACTICE_FACILITIES.putting.pin.y) * 3).toFixed(1);
+        showToastBanner(`Putt stopped ${dist} ft from cup.`, "text-emerald-300 border-emerald-400");
+        setTimeout(() => initPracticeMode('putting'), 1400);
+        return;
+      }
+
+      const hole = getCurrentCourseEntity();
       const currentP = getActivePlayer();
       const b = currentP.ball;
       b.lie = checkLie(b.x, b.y);
-
-      if (state.playMode === 'range') {
-        const dist = Math.round(Math.hypot(b.x - entity.tee.x, b.y - entity.tee.y));
-        showToastBanner(`Drive Distance: ${dist} yds`, "text-amber-300 border-amber-400");
-        setTimeout(() => {
-          b.x = entity.tee.x;
-          b.y = entity.tee.y;
-          b.vx = 0; b.vy = 0; b.z = 0;
-          b.trail = [];
-          b.lie = 'Tee';
-          randomizeSweetSpot();
-          resetSwingMeter();
-          updateUI();
-        }, 1600);
-        return;
-      }
-
-      if (state.playMode === 'putting') {
-        const ft = (Math.hypot(b.x - entity.pin.x, b.y - entity.pin.y) * 3).toFixed(1);
-        showToastBanner(`Putt Stopped: ${ft} ft to Cup`, "text-emerald-300 border-emerald-400");
-        randomizeSweetSpot();
-        resetSwingMeter();
-        updateUI();
-        return;
-      }
 
       if (b.lie === 'OB') {
         showToastBanner(`${currentP.name}: OUT OF BOUNDS! (+1 Stroke)`, "text-red-400 border-red-500");
@@ -1688,8 +2627,8 @@
         currentP.shotCount += 1;
       }
 
-      const dx = entity.pin.x - b.x;
-      const dy = entity.pin.y - b.y;
+      const dx = hole.pin.x - b.x;
+      const dy = hole.pin.y - b.y;
       currentP.aimAngle = Math.atan2(dy, dx);
 
       switchTurnIfNeeded();
@@ -1698,21 +2637,16 @@
     function onBallHoled(player) {
       if (state.playMode === 'putting') {
         showToastBanner("GREAT PUTT! HOLED OUT! ⛳", "text-amber-300 border-amber-400");
-        setTimeout(() => {
-          initPracticeMode('putting');
-        }, 1500);
+        setTimeout(() => initPracticeMode('putting'), 1500);
         return;
       }
       if (state.playMode === 'range') {
         showToastBanner("DIRECT HIT ON TARGET PIN! 🌟", "text-amber-300 border-amber-400");
-        setTimeout(() => {
-          initPracticeMode('range');
-        }, 1500);
+        setTimeout(() => initPracticeMode('range'), 1500);
         return;
       }
 
       player.scores[state.currentHoleIdx] = player.shotCount;
-      const hole = COURSE_HOLES[state.currentHoleIdx];
       showToastBanner(`${player.name} HOLED OUT in ${player.shotCount}!`, "text-amber-300 border-amber-400");
 
       if (state.gameMode === '2P') {
@@ -1720,6 +2654,7 @@
         if (!otherP.ball.inCup) {
           setTimeout(() => {
             state.activePlayerIdx = otherP.id;
+            const hole = getCurrentCourseEntity();
             const b = otherP.ball;
             const dx = hole.pin.x - b.x;
             const dy = hole.pin.y - b.y;
@@ -1738,7 +2673,7 @@
     }
 
     function switchTurnIfNeeded() {
-      const hole = COURSE_HOLES[state.currentHoleIdx];
+      const hole = getCurrentCourseEntity();
 
       if (state.gameMode === '2P') {
         const p1 = state.players[0];
@@ -1768,7 +2703,8 @@
     }
 
     function onHoleComplete() {
-      const hole = COURSE_HOLES[state.currentHoleIdx];
+      const holes = getCourseHoles();
+      const hole = holes[state.currentHoleIdx];
       const p1 = state.players[0];
       const p2 = state.players[1];
 
@@ -1830,19 +2766,167 @@
       return { name: `Double Bogey+ (+${diff})`, bannerBg: "bg-red-600 text-white" };
     }
 
+    function calculateToPar(playerIdx = 0) {
+      let total = 0;
+      const holes = getCourseHoles();
+      const scores = state.players[playerIdx].scores;
+      for (let i = 0; i < holes.length; i++) {
+        if (scores[i] !== null) {
+          total += (scores[i] - holes[i].par);
+        }
+      }
+      return total;
+    }
+
+    function formatToPar(diff) {
+      if (diff === 0) return 'E';
+      return diff > 0 ? `+${diff}` : `${diff}`;
+    }
+
+    function updateScorecardTable() {
+      const holes = getCourseHoles();
+      const count = holes.length;
+      const table = document.querySelector('#scorecardModal table');
+      if (!table) return;
+
+      let theadHtml = '<tr class="bg-emerald-950/80 text-emerald-300 font-bold border-b border-emerald-700/60"><th class="p-2 text-left">Hole</th>';
+      let parHtml = '<tr class="border-b border-emerald-800/40 text-emerald-200"><td class="p-2 font-bold text-left text-emerald-400">Par</td>';
+
+      if (count <= 9) {
+        for (let i = 0; i < count; i++) {
+          theadHtml += `<th class="p-2">${i + 1}</th>`;
+          parHtml += `<td class="p-2">${holes[i].par}</td>`;
+        }
+        theadHtml += '<th class="p-2 bg-emerald-800 text-amber-400 font-black">TOT</th></tr>';
+        const totalPar = holes.reduce((s, h) => s + h.par, 0);
+        parHtml += `<td class="p-2 bg-emerald-900 font-extrabold text-amber-400">${totalPar}</td></tr>`;
+      } else {
+        for (let i = 0; i < 9; i++) {
+          theadHtml += `<th class="p-2">${i + 1}</th>`;
+          parHtml += `<td class="p-2">${holes[i].par}</td>`;
+        }
+        theadHtml += '<th class="p-2 bg-emerald-900 text-amber-300 font-bold">OUT</th>';
+        const outPar = holes.slice(0, 9).reduce((s, h) => s + h.par, 0);
+        parHtml += `<td class="p-2 bg-emerald-950/80 font-bold text-amber-300">${outPar}</td>`;
+
+        for (let i = 9; i < count; i++) {
+          theadHtml += `<th class="p-2">${i + 1}</th>`;
+          parHtml += `<td class="p-2">${holes[i].par}</td>`;
+        }
+        theadHtml += '<th class="p-2 bg-emerald-900 text-amber-300 font-bold">IN</th><th class="p-2 bg-emerald-800 text-amber-400 font-black">TOT</th></tr>';
+        const inPar = holes.slice(9, count).reduce((s, h) => s + h.par, 0);
+        parHtml += `<td class="p-2 bg-emerald-950/80 font-bold text-amber-300">${inPar}</td><td class="p-2 bg-emerald-900 font-extrabold text-amber-400">${outPar + inPar}</td></tr>`;
+      }
+
+      table.querySelector('thead').innerHTML = theadHtml;
+
+      const tbody = table.querySelector('tbody');
+      tbody.innerHTML = parHtml + '<tr id="scorecardRowScores" class="text-white font-bold border-b border-emerald-700/60"><td class="p-2 font-bold text-left text-white">P1 Score</td></tr><tr id="scorecardRowScoresP2" class="text-white font-bold border-b border-emerald-700/60 hidden"><td class="p-2 font-bold text-left text-amber-300">P2 Score</td></tr>';
+
+      const rowP1 = document.getElementById('scorecardRowScores');
+      populateScoreRow(rowP1, state.players[0], 'P1 Score');
+
+      const rowP2 = document.getElementById('scorecardRowScoresP2');
+      if (state.gameMode === '2P') {
+        rowP2.classList.remove('hidden');
+        populateScoreRow(rowP2, state.players[1], 'P2 Score');
+      } else {
+        rowP2.classList.add('hidden');
+      }
+    }
+
+    function populateScoreRow(rowElement, player, label) {
+      const holes = getCourseHoles();
+      const count = holes.length;
+      rowElement.innerHTML = `<td class="p-2 font-bold text-left ${player.id === 0 ? 'text-white' : 'text-amber-300'}">${label}</td>`;
+
+      if (count <= 9) {
+        let tot = 0;
+        for (let i = 0; i < count; i++) {
+          const sc = player.scores[i];
+          const par = holes[i].par;
+          const cell = document.createElement('td');
+          cell.className = 'p-2 font-bold';
+          if (sc !== null) {
+            tot += sc;
+            cell.innerHTML = formatScoreBadge(sc, par);
+          } else {
+            cell.innerText = '-';
+          }
+          rowElement.appendChild(cell);
+        }
+        const totCell = document.createElement('td');
+        totCell.className = 'p-2 bg-emerald-900 font-extrabold text-amber-400';
+        totCell.innerText = tot > 0 ? tot : '-';
+        rowElement.appendChild(totCell);
+      } else {
+        let outTotal = 0;
+        let inTotal = 0;
+        for (let i = 0; i < 9; i++) {
+          const sc = player.scores[i];
+          const par = holes[i].par;
+          const cell = document.createElement('td');
+          cell.className = 'p-2 font-bold';
+          if (sc !== null) {
+            outTotal += sc;
+            cell.innerHTML = formatScoreBadge(sc, par);
+          } else {
+            cell.innerText = '-';
+          }
+          rowElement.appendChild(cell);
+        }
+        const outCell = document.createElement('td');
+        outCell.className = 'p-2 bg-emerald-950/80 font-bold text-amber-300';
+        outCell.innerText = outTotal > 0 ? outTotal : '-';
+        rowElement.appendChild(outCell);
+
+        for (let i = 9; i < count; i++) {
+          const sc = player.scores[i];
+          const par = holes[i].par;
+          const cell = document.createElement('td');
+          cell.className = 'p-2 font-bold';
+          if (sc !== null) {
+            inTotal += sc;
+            cell.innerHTML = formatScoreBadge(sc, par);
+          } else {
+            cell.innerText = '-';
+          }
+          rowElement.appendChild(cell);
+        }
+        const inCell = document.createElement('td');
+        inCell.className = 'p-2 bg-emerald-950/80 font-bold text-amber-300';
+        inCell.innerText = inTotal > 0 ? inTotal : '-';
+        rowElement.appendChild(inCell);
+
+        const totCell = document.createElement('td');
+        totCell.className = 'p-2 bg-emerald-900 font-extrabold text-amber-400';
+        totCell.innerText = (outTotal + inTotal) > 0 ? (outTotal + inTotal) : '-';
+        rowElement.appendChild(totCell);
+      }
+    }
+
+    function formatScoreBadge(score, par) {
+      const diff = score - par;
+      if (diff <= -2) return `<span class="inline-block w-6 h-6 rounded-full bg-yellow-400 text-emerald-950 leading-6">${score}</span>`;
+      if (diff === -1) return `<span class="inline-block w-6 h-6 rounded-full bg-emerald-400 text-emerald-950 leading-6">${score}</span>`;
+      if (diff === 0) return `<span class="inline-block w-6 h-6 rounded-full bg-white text-emerald-950 leading-6">${score}</span>`;
+      if (diff === 1) return `<span class="inline-block w-6 h-6 rounded-full bg-orange-500 text-white leading-6">${score}</span>`;
+      return `<span class="inline-block w-6 h-6 rounded bg-red-600 text-white leading-6">${score}</span>`;
+    }
+
     function updateCamera() {
       const p = getActivePlayer();
       const b = p.ball;
-      const entity = getCurrentCourseEntity();
+      const hole = getCurrentCourseEntity();
 
       if (state.camera.mode === 'follow') {
         if (b.inFlight) {
           state.camera.targetX = b.x + b.vx * 0.3;
           state.camera.targetY = b.y + b.vy * 0.3;
           state.camera.targetZoom = Math.max(0.75, 1.15 - (b.z / 32));
-        } else if (b.lie === 'Green' || state.playMode === 'putting') {
-          state.camera.targetX = entity.pin.x;
-          state.camera.targetY = entity.pin.y;
+        } else if (b.lie === 'Green') {
+          state.camera.targetX = hole.pin.x;
+          state.camera.targetY = hole.pin.y;
           state.camera.targetZoom = 1.7;
         } else {
           const club = CLUBS[p.selectedClubIdx];
@@ -1852,8 +2936,8 @@
           state.camera.targetZoom = 1.1;
         }
       } else if (state.camera.mode === 'flyover') {
-        state.camera.targetX = (b.x + entity.pin.x) / 2;
-        state.camera.targetY = (b.y + entity.pin.y) / 2;
+        state.camera.targetX = (b.x + hole.pin.x) / 2;
+        state.camera.targetY = (b.y + hole.pin.y) / 2;
         state.camera.targetZoom = 0.52;
       }
 
@@ -1865,7 +2949,7 @@
     function render() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      const entity = getCurrentCourseEntity();
+      const hole = getCurrentCourseEntity();
       const cam = state.camera;
       const activeP = getActivePlayer();
 
@@ -1874,25 +2958,25 @@
       ctx.scale(cam.zoom, cam.zoom);
       ctx.translate(-cam.x, -cam.y);
 
-      // Rough course base
-      ctx.fillStyle = '#1b4327';
-      ctx.fillRect(cam.x - 1200, cam.y - 1200, 2400, 2400);
+      // Terrain Base
+      ctx.fillStyle = '#173b22';
+      ctx.fillRect(cam.x - 1400, cam.y - 1400, 2800, 2800);
 
-      // Striped grass patterns
+      // Striped Rough Pattern
       ctx.fillStyle = 'rgba(0, 0, 0, 0.035)';
       const step = 22;
-      const startX = Math.floor((cam.x - 1000) / step) * step;
-      const startY = Math.floor((cam.y - 1000) / step) * step;
-      for (let x = startX; x < startX + 2000; x += step * 2) {
-        ctx.fillRect(x, startY, step, 2000);
+      const startX = Math.floor((cam.x - 1200) / step) * step;
+      const startY = Math.floor((cam.y - 1200) / step) * step;
+      for (let x = startX; x < startX + 2400; x += step * 2) {
+        ctx.fillRect(x, startY, step, 2400);
       }
 
       // Fairways
       ctx.save();
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
-      for (const seg of entity.fairwaySegments) {
-        ctx.strokeStyle = '#2b6539';
+      for (const seg of hole.fairwaySegments) {
+        ctx.strokeStyle = '#275d34';
         ctx.lineWidth = seg.width + 10;
         ctx.beginPath();
         ctx.moveTo(seg.x1, seg.y1);
@@ -1910,8 +2994,8 @@
 
       // Water Hazards
       const t = Date.now() * 0.002;
-      for (const w of entity.water) {
-        ctx.fillStyle = '#234e36';
+      for (const w of hole.water) {
+        ctx.fillStyle = '#204a32';
         ctx.beginPath();
         ctx.ellipse(w.x, w.y, w.rx + 5, w.ry + 5, 0, 0, Math.PI * 2);
         ctx.fill();
@@ -1932,7 +3016,7 @@
       }
 
       // Sand Bunkers
-      for (const b of entity.bunkers) {
+      for (const b of hole.bunkers) {
         ctx.fillStyle = 'rgba(0, 0, 0, 0.22)';
         ctx.beginPath();
         ctx.ellipse(b.x + 3, b.y + 3, b.rx, b.ry, 0, 0, Math.PI * 2);
@@ -1948,31 +3032,10 @@
         ctx.stroke();
       }
 
-      // Driving Range Target Rings
-      if (state.playMode === 'range' && PRACTICE_FACILITIES.range.rangeTargets) {
-        for (const tg of PRACTICE_FACILITIES.range.rangeTargets) {
-          ctx.strokeStyle = tg.color;
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.arc(1022, tg.y, 16, 0, Math.PI * 2);
-          ctx.stroke();
-
-          ctx.fillStyle = tg.color;
-          ctx.beginPath();
-          ctx.arc(1022, tg.y, 3, 0, Math.PI * 2);
-          ctx.fill();
-
-          ctx.fillStyle = '#ffffff';
-          ctx.font = 'bold 10px sans-serif';
-          ctx.textAlign = 'center';
-          ctx.fillText(`${tg.dist} yds`, 1022, tg.y + 14);
-        }
-      }
-
-      // Putting Green & Beads
-      if (entity.green) {
-        const g = entity.green;
-        ctx.fillStyle = '#2f7440';
+      // Green & Fringe
+      if (hole.green) {
+        const g = hole.green;
+        ctx.fillStyle = '#2a6a3b';
         ctx.beginPath();
         ctx.arc(g.x, g.y, g.r + 3.5, 0, Math.PI * 2);
         ctx.fill();
@@ -1982,42 +3045,63 @@
         ctx.arc(g.x, g.y, g.r, 0, Math.PI * 2);
         ctx.fill();
 
+        // Cup
+        ctx.fillStyle = '#111827';
+        ctx.beginPath();
+        ctx.arc(hole.pin.x, hole.pin.y, 1.4, 0, Math.PI * 2);
+        ctx.fill();
+
         // Slope Contour Grid Beads
-        if (entity.slope && entity.slope.mag > 0) {
-          const beadNow = Date.now() * 0.003;
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-          for (const dot of state.puttingGridDots) {
-            const offset = ((beadNow + dot.phase) % 1.0) * 3.5;
-            const dx = Math.cos(entity.slope.dir) * offset;
-            const dy = Math.sin(entity.slope.dir) * offset;
-            ctx.beginPath();
-            ctx.arc(dot.x + dx, dot.y + dy, 0.75, 0, Math.PI * 2);
-            ctx.fill();
-          }
+        const beadNow = Date.now() * 0.003;
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+        for (const dot of state.puttingGridDots) {
+          const offset = ((beadNow + dot.phase) % 1.0) * 3.5;
+          const dx = Math.cos(hole.slope ? hole.slope.dir : 0) * offset;
+          const dy = Math.sin(hole.slope ? hole.slope.dir : 0) * offset;
+          ctx.beginPath();
+          ctx.arc(dot.x + dx, dot.y + dy, 0.75, 0, Math.PI * 2);
+          ctx.fill();
         }
       }
 
-      // Cup Hole
-      ctx.fillStyle = '#111827';
-      ctx.beginPath();
-      ctx.arc(entity.pin.x, entity.pin.y, 1.4, 0, Math.PI * 2);
-      ctx.fill();
+      // Range Target Markers
+      if (state.playMode === 'range' && hole.targets) {
+        for (const tg of hole.targets) {
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+          ctx.lineWidth = 2;
+          ctx.setLineDash([4, 4]);
+          ctx.beginPath();
+          ctx.arc(hole.tee.x, tg.y, 18, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.setLineDash([]);
 
-      // Tee Box Markers
-      if (entity.tee) {
-        ctx.fillStyle = '#317644';
+          ctx.fillStyle = 'rgba(251, 191, 36, 0.25)';
+          ctx.beginPath();
+          ctx.arc(hole.tee.x, tg.y, 18, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = '#fde047';
+          ctx.font = 'bold 10px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(tg.label, hole.tee.x, tg.y - 8);
+        }
+      }
+
+      // Tee Box
+      if (hole.tee) {
+        ctx.fillStyle = '#2d6e3e';
         ctx.beginPath();
-        ctx.arc(entity.tee.x, entity.tee.y, 9, 0, Math.PI * 2);
+        ctx.arc(hole.tee.x, hole.tee.y, 9, 0, Math.PI * 2);
         ctx.fill();
 
         ctx.fillStyle = '#38bdf8';
         ctx.beginPath();
-        ctx.arc(entity.tee.x - 4, entity.tee.y, 1.2, 0, Math.PI * 2);
-        ctx.arc(entity.tee.x + 4, entity.tee.y, 1.2, 0, Math.PI * 2);
+        ctx.arc(hole.tee.x - 4, hole.tee.y, 1.2, 0, Math.PI * 2);
+        ctx.arc(hole.tee.x + 4, hole.tee.y, 1.2, 0, Math.PI * 2);
         ctx.fill();
       }
 
-      // Active Player Aim Guidance
+      // Aim Line Reticle
       const activeBall = activeP.ball;
       if (!activeBall.inFlight && !activeBall.isRolling && !activeBall.inCup) {
         const club = CLUBS[activeP.selectedClubIdx];
@@ -2041,8 +3125,8 @@
         ctx.stroke();
       }
 
-      // Render balls
-      const numPlayers = (state.gameMode === '2P' && state.playMode === 'course') ? 2 : 1;
+      // Balls
+      const numPlayers = state.gameMode === '2P' && state.playMode === 'course' ? 2 : 1;
       for (let i = 0; i < numPlayers; i++) {
         const p = state.players[i];
         const b = p.ball;
@@ -2079,7 +3163,7 @@
           ctx.arc(b.x - ballSize * 0.3, renderY - ballSize * 0.3, ballSize * 0.35, 0, Math.PI * 2);
           ctx.fill();
 
-          if (state.gameMode === '2P' && state.playMode === 'course' && !b.inFlight && !b.isRolling) {
+          if (state.gameMode === '2P' && !b.inFlight && !b.isRolling) {
             ctx.fillStyle = p.id === 0 ? '#0284c7' : '#d97706';
             ctx.beginPath();
             ctx.roundRect(b.x - 7, renderY - 14, 14, 8, 3);
@@ -2093,31 +3177,33 @@
       }
 
       // Flagstick
-      const px = entity.pin.x;
-      const py = entity.pin.y;
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
-      ctx.beginPath();
-      ctx.ellipse(px + 4, py + 2, 5, 2, 0, 0, Math.PI * 2);
-      ctx.fill();
+      if (hole.pin) {
+        const px = hole.pin.x;
+        const py = hole.pin.y;
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+        ctx.beginPath();
+        ctx.ellipse(px + 4, py + 2, 5, 2, 0, 0, Math.PI * 2);
+        ctx.fill();
 
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(px, py);
-      ctx.lineTo(px, py - 24);
-      ctx.stroke();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(px, py);
+        ctx.lineTo(px, py - 24);
+        ctx.stroke();
 
-      const wave = Math.sin(Date.now() * 0.005) * 3;
-      ctx.fillStyle = '#ef4444';
-      ctx.beginPath();
-      ctx.moveTo(px, py - 24);
-      ctx.lineTo(px + 12 + wave, py - 19);
-      ctx.lineTo(px, py - 14);
-      ctx.closePath();
-      ctx.fill();
+        const wave = Math.sin(Date.now() * 0.005) * 3;
+        ctx.fillStyle = '#ef4444';
+        ctx.beginPath();
+        ctx.moveTo(px, py - 24);
+        ctx.lineTo(px + 12 + wave, py - 19);
+        ctx.lineTo(px, py - 14);
+        ctx.closePath();
+        ctx.fill();
+      }
 
       // Trees
-      for (const tr of entity.trees) {
+      for (const tr of hole.trees) {
         ctx.fillStyle = 'rgba(0, 0, 0, 0.28)';
         ctx.beginPath();
         ctx.ellipse(tr.x + 6, tr.y + 8, tr.r * 1.05, tr.r * 0.8, 0, 0, Math.PI * 2);
@@ -2138,69 +3224,34 @@
         ctx.fill();
       }
 
-      // Clubhouse & Resort Facilities (Only rendered in Course mode, positioned outside putting line)
-      if (state.playMode === 'course') {
-        ctx.fillStyle = '#1e293b';
-        ctx.fillRect(1050, 670, 75, 140);
-        ctx.strokeStyle = '#475569';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(1050, 670, 75, 140);
-
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 9px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('CLUB', 1087, 735);
-        ctx.fillText('HOUSE', 1087, 747);
-
-        // Subtle practice area indicators placed safely away from greens
-        ctx.fillStyle = '#047857';
-        ctx.beginPath();
-        ctx.roundRect(980, 900, 85, 45, 8);
-        ctx.fill();
-        ctx.strokeStyle = '#34d399';
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-        ctx.fillStyle = '#a7f3d0';
-        ctx.font = 'bold 8px sans-serif';
-        ctx.fillText('DRIVING RANGE', 1022, 926);
-
-        ctx.fillStyle = '#2f7440';
-        ctx.beginPath();
-        ctx.ellipse(1100, 845, 22, 14, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#a7f3d0';
-        ctx.font = 'bold 7px sans-serif';
-        ctx.fillText('PRACTICE GREEN', 1100, 868);
-      }
-
       ctx.restore();
 
-      drawMinimap(entity);
+      drawMinimap(hole);
       renderSwingMeter();
 
       requestAnimationFrame(render);
     }
 
-    function drawMinimap(entity) {
-      const mapW = 100;
-      const mapH = 150;
+    function drawMinimap(hole) {
+      const mapW = 96;
+      const mapH = 145;
       const padding = 16;
       const x0 = canvas.width - mapW - padding;
-      const y0 = canvas.height - mapH - 95;
+      const y0 = canvas.height - mapH - 90;
 
       ctx.save();
-      ctx.fillStyle = 'rgba(6, 44, 25, 0.85)';
-      ctx.strokeStyle = 'rgba(52, 211, 153, 0.35)';
+      ctx.fillStyle = 'rgba(6, 44, 25, 0.88)';
+      ctx.strokeStyle = 'rgba(52, 211, 153, 0.4)';
       ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.roundRect(x0, y0, mapW, mapH, 12);
       ctx.fill();
       ctx.stroke();
 
-      const minY = Math.min(entity.green ? entity.green.y : entity.pin.y, entity.tee.y) - 35;
-      const maxY = Math.max(entity.green ? entity.green.y : entity.pin.y, entity.tee.y) + 35;
-      const minX = Math.min(entity.green ? entity.green.x : entity.pin.x, entity.tee.x) - 65;
-      const maxX = Math.max(entity.green ? entity.green.x : entity.pin.x, entity.tee.x) + 65;
+      const minY = Math.min(hole.green ? hole.green.y : hole.pin.y, hole.tee ? hole.tee.y : hole.pin.y) - 35;
+      const maxY = Math.max(hole.green ? hole.green.y : hole.pin.y, hole.tee ? hole.tee.y : hole.pin.y) + 35;
+      const minX = Math.min(hole.green ? hole.green.x : hole.pin.x, hole.tee ? hole.tee.x : hole.pin.x) - 65;
+      const maxX = Math.max(hole.green ? hole.green.x : hole.pin.x, hole.tee ? hole.tee.x : hole.pin.x) + 65;
 
       function toMap(wx, wy) {
         const mx = x0 + 10 + ((wx - minX) / (maxX - minX)) * (mapW - 20);
@@ -2212,7 +3263,7 @@
       ctx.lineWidth = 6;
       ctx.lineCap = 'round';
       ctx.beginPath();
-      for (const seg of entity.fairwaySegments) {
+      for (const seg of hole.fairwaySegments) {
         const p1 = toMap(seg.x1, seg.y1);
         const p2 = toMap(seg.x2, seg.y2);
         ctx.moveTo(p1.x, p1.y);
@@ -2221,28 +3272,30 @@
       ctx.stroke();
 
       ctx.fillStyle = '#38bdf8';
-      for (const w of entity.water) {
+      for (const w of hole.water) {
         const mw = toMap(w.x, w.y);
         ctx.beginPath();
-        ctx.arc(mw.x, mw.y, 4, 0, Math.PI * 2);
+        ctx.arc(mw.x, mw.y, 3.5, 0, Math.PI * 2);
         ctx.fill();
       }
 
-      if (entity.green) {
-        const mg = toMap(entity.green.x, entity.green.y);
+      if (hole.green) {
+        const mg = toMap(hole.green.x, hole.green.y);
         ctx.fillStyle = '#4ade80';
         ctx.beginPath();
         ctx.arc(mg.x, mg.y, 5, 0, Math.PI * 2);
         ctx.fill();
       }
 
-      const mp = toMap(entity.pin.x, entity.pin.y);
-      ctx.fillStyle = '#ef4444';
-      ctx.beginPath();
-      ctx.arc(mp.x, mp.y, 2.5, 0, Math.PI * 2);
-      ctx.fill();
+      if (hole.pin) {
+        const mp = toMap(hole.pin.x, hole.pin.y);
+        ctx.fillStyle = '#ef4444';
+        ctx.beginPath();
+        ctx.arc(mp.x, mp.y, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
 
-      const count = (state.gameMode === '2P' && state.playMode === 'course') ? 2 : 1;
+      const count = state.gameMode === '2P' && state.playMode === 'course' ? 2 : 1;
       for (let i = 0; i < count; i++) {
         const p = state.players[i];
         const mb = toMap(p.ball.x, p.ball.y);
@@ -2275,23 +3328,22 @@
       meterCtx.fillStyle = pGrad;
       meterCtx.fillRect(0, 0, w, h);
 
-      // Dynamic Sweet Spot notch
       const spotCenter = w * s.sweetSpotLocation;
       const spotW = w * s.sweetSpotWidth;
       meterCtx.fillStyle = 'rgba(255, 255, 255, 0.45)';
       meterCtx.fillRect(spotCenter - spotW / 2, 0, spotW, h);
 
       meterCtx.strokeStyle = '#ffffff';
-      meterCtx.lineWidth = 3;
+      meterCtx.lineWidth = 2.5;
       meterCtx.beginPath();
       meterCtx.moveTo(spotCenter, 0);
       meterCtx.lineTo(spotCenter, h);
       meterCtx.stroke();
 
       meterCtx.fillStyle = '#ffffff';
-      meterCtx.font = 'bold 9px sans-serif';
+      meterCtx.font = 'bold 8px sans-serif';
       meterCtx.textAlign = 'center';
-      meterCtx.fillText('SWEET', spotCenter, 10);
+      meterCtx.fillText('SWEET', spotCenter, 9);
 
       if (s.state === 'POWER') {
         const needleX = s.powerProgress * w;
@@ -2311,43 +3363,22 @@
     }
 
     function updateUI() {
-      const entity = getCurrentCourseEntity();
+      const hole = getCurrentCourseEntity();
       const p = getActivePlayer();
       const b = p.ball;
-      const distToPin = Math.round(Math.hypot(entity.pin.x - b.x, entity.pin.y - b.y));
+      const distToPin = Math.round(Math.hypot(hole.pin.x - b.x, hole.pin.y - b.y));
 
-      if (state.playMode === 'course') {
-        if (state.gameMode === '2P') {
-          uiPlayerIndicator.classList.remove('hidden');
-          uiCurrentPlayerBadge.innerText = p.id === 0 ? 'P1: Player 1' : 'P2: Player 2';
-          uiCurrentPlayerBadge.className = `text-xs sm:text-sm font-black px-2.5 py-0.5 rounded-lg text-white inline-block shadow ${p.id === 0 ? 'bg-sky-600' : 'bg-amber-500'}`;
-        } else {
-          uiPlayerIndicator.classList.add('hidden');
-        }
-
-        uiHoleNum.innerText = entity.num;
-        uiHolePar.innerText = entity.par;
-        uiPinDist.innerHTML = `${distToPin} <span class="text-xs font-normal">yds</span>`;
-        uiTotalScore.innerText = formatToPar(calculateToPar(p.id));
-      } else if (state.playMode === 'range') {
+      if (state.gameMode === '2P' && state.playMode === 'course') {
         uiPlayerIndicator.classList.remove('hidden');
-        uiCurrentPlayerBadge.innerText = 'RANGE';
-        uiCurrentPlayerBadge.className = 'text-xs sm:text-sm font-black px-2.5 py-0.5 rounded-lg text-white inline-block bg-amber-600 shadow';
-        uiHoleNum.innerText = 'DR';
-        uiHolePar.innerText = '∞';
-        uiPinDist.innerHTML = `${distToPin} <span class="text-xs font-normal">yds</span>`;
-        uiTotalScore.innerText = 'PRAC';
-      } else if (state.playMode === 'putting') {
-        uiPlayerIndicator.classList.remove('hidden');
-        uiCurrentPlayerBadge.innerText = 'PUTT';
-        uiCurrentPlayerBadge.className = 'text-xs sm:text-sm font-black px-2.5 py-0.5 rounded-lg text-white inline-block bg-emerald-600 shadow';
-        uiHoleNum.innerText = 'PG';
-        uiHolePar.innerText = '∞';
-        const feet = (distToPin * 3).toFixed(1);
-        uiPinDist.innerHTML = `${feet} <span class="text-xs font-normal">ft</span>`;
-        uiTotalScore.innerText = 'PRAC';
+        uiCurrentPlayerBadge.innerText = p.id === 0 ? 'P1' : 'P2';
+        uiCurrentPlayerBadge.className = `text-xs font-black px-2 py-0.5 rounded-lg text-white inline-block shadow ${p.id === 0 ? 'bg-sky-600' : 'bg-amber-500'}`;
+      } else {
+        uiPlayerIndicator.classList.add('hidden');
       }
 
+      uiHoleNum.innerText = hole.num;
+      uiHolePar.innerText = hole.par;
+      uiPinDist.innerHTML = `${distToPin} <span class="text-[10px] font-normal">yds</span>`;
       uiShotNum.innerText = p.shotCount;
       uiLieText.innerText = b.lie;
 
@@ -2362,206 +3393,17 @@
       const deg = Math.round((p.aimAngle * (180 / Math.PI) + 90) % 360);
       uiAimAngle.innerText = `${deg >= 0 ? deg : 360 + deg}°`;
 
+      const toPar = calculateToPar(p.id);
+      uiTotalScore.innerText = formatToPar(toPar);
+
       if (state.swing.state === 'READY') {
-        if (state.playMode === 'range') {
-          swingPrompt.innerText = "Driving Range: Click to Tee Off";
-        } else if (state.playMode === 'putting') {
-          swingPrompt.innerText = "Practice Green: Click or Press Space to Putt";
-        } else {
-          swingPrompt.innerText = state.gameMode === '2P' 
-            ? `${p.name}: Click or Press Space to Swing`
-            : "Click or Press Space to Swing";
-        }
+        swingPrompt.innerText = state.gameMode === '2P' 
+          ? `${p.name}: Click or Press Space to Swing`
+          : "Click or Press Space to Swing";
       }
     }
 
-    function calculateToPar(playerIdx = 0) {
-      let total = 0;
-      const scores = state.players[playerIdx].scores;
-      for (let i = 0; i < 18; i++) {
-        if (scores[i] !== null) {
-          total += (scores[i] - COURSE_HOLES[i].par);
-        }
-      }
-      return total;
-    }
-
-    function formatToPar(diff) {
-      if (diff === 0) return 'E';
-      return diff > 0 ? `+${diff}` : `${diff}`;
-    }
-
-    function updateScorecardTable() {
-      const rowP1 = document.getElementById('scorecardRowScores');
-      populateScoreRow(rowP1, state.players[0], 'P1 Score');
-
-      const rowP2 = document.getElementById('scorecardRowScoresP2');
-      if (state.gameMode === '2P') {
-        rowP2.classList.remove('hidden');
-        populateScoreRow(rowP2, state.players[1], 'P2 Score');
-      } else {
-        rowP2.classList.add('hidden');
-      }
-    }
-
-    function populateScoreRow(rowElement, player, label) {
-      rowElement.innerHTML = `<td class="p-2 font-bold text-left ${player.id === 0 ? 'text-white' : 'text-amber-300'}">${label}</td>`;
-
-      let outTotal = 0;
-      let inTotal = 0;
-
-      for (let i = 0; i < 9; i++) {
-        const sc = player.scores[i];
-        const par = COURSE_HOLES[i].par;
-        const cell = document.createElement('td');
-        cell.className = 'p-2 font-bold';
-        if (sc !== null) {
-          outTotal += sc;
-          cell.innerHTML = formatScoreBadge(sc, par);
-        } else {
-          cell.innerText = '-';
-        }
-        rowElement.appendChild(cell);
-      }
-
-      const outCell = document.createElement('td');
-      outCell.className = 'p-2 bg-emerald-950/80 font-bold text-amber-300';
-      outCell.innerText = outTotal > 0 ? outTotal : '-';
-      rowElement.appendChild(outCell);
-
-      for (let i = 9; i < 18; i++) {
-        const sc = player.scores[i];
-        const par = COURSE_HOLES[i].par;
-        const cell = document.createElement('td');
-        cell.className = 'p-2 font-bold';
-        if (sc !== null) {
-          inTotal += sc;
-          cell.innerHTML = formatScoreBadge(sc, par);
-        } else {
-          cell.innerText = '-';
-        }
-        rowElement.appendChild(cell);
-      }
-
-      const inCell = document.createElement('td');
-      inCell.className = 'p-2 bg-emerald-950/80 font-bold text-amber-300';
-      inCell.innerText = inTotal > 0 ? inTotal : '-';
-      rowElement.appendChild(inCell);
-
-      const totCell = document.createElement('td');
-      totCell.className = 'p-2 bg-emerald-900 font-extrabold text-amber-400';
-      totCell.innerText = (outTotal + inTotal) > 0 ? (outTotal + inTotal) : '-';
-      rowElement.appendChild(totCell);
-    }
-
-    function formatScoreBadge(score, par) {
-      const diff = score - par;
-      if (diff <= -2) return `<span class="inline-block w-6 h-6 rounded-full bg-yellow-400 text-emerald-950 leading-6">${score}</span>`;
-      if (diff === -1) return `<span class="inline-block w-6 h-6 rounded-full bg-emerald-400 text-emerald-950 leading-6">${score}</span>`;
-      if (diff === 0) return `<span class="inline-block w-6 h-6 rounded-full bg-white text-emerald-950 leading-6">${score}</span>`;
-      if (diff === 1) return `<span class="inline-block w-6 h-6 rounded-full bg-orange-500 text-white leading-6">${score}</span>`;
-      return `<span class="inline-block w-6 h-6 rounded bg-red-600 text-white leading-6">${score}</span>`;
-    }
-
-    function toggleCourseMap() {
-      const isHidden = courseMapModal.classList.toggle('hidden');
-      if (!isHidden) {
-        renderFullCourseOverview();
-      }
-    }
-
-    function renderFullCourseOverview() {
-      overviewCanvas.width = overviewCanvas.parentElement.clientWidth;
-      overviewCanvas.height = overviewCanvas.parentElement.clientHeight;
-      const oCtx = overviewCtx;
-      const w = overviewCanvas.width;
-      const h = overviewCanvas.height;
-
-      oCtx.fillStyle = '#0b1d13';
-      oCtx.fillRect(0, 0, w, h);
-
-      const minX = 20, maxX = 1420;
-      const minY = 30, maxY = 1040;
-
-      function toMap(x, y) {
-        const padding = 35;
-        const scaleX = (w - padding * 2) / (maxX - minX);
-        const scaleY = (h - padding * 2) / (maxY - minY);
-        const scale = Math.min(scaleX, scaleY);
-        const offsetX = (w - (maxX - minX) * scale) / 2;
-        const offsetY = (h - (maxY - minY) * scale) / 2;
-        return {
-          x: offsetX + (x - minX) * scale,
-          y: offsetY + (y - minY) * scale,
-          scale: scale
-        };
-      }
-
-      COURSE_HOLES.forEach((hole, idx) => {
-        const isActive = idx === state.currentHoleIdx;
-        oCtx.strokeStyle = isActive ? '#4ade80' : '#2b6539';
-        oCtx.lineWidth = Math.max(3, 14 * toMap(0, 0).scale);
-        oCtx.lineCap = 'round';
-        oCtx.beginPath();
-        for (const seg of hole.fairwaySegments) {
-          const p1 = toMap(seg.x1, seg.y1);
-          const p2 = toMap(seg.x2, seg.y2);
-          oCtx.moveTo(p1.x, p1.y);
-          oCtx.lineTo(p2.x, p2.y);
-        }
-        oCtx.stroke();
-
-        for (const wt of hole.water) {
-          const p = toMap(wt.x, wt.y);
-          oCtx.fillStyle = '#0284c7';
-          oCtx.beginPath();
-          oCtx.ellipse(p.x, p.y, Math.max(3, wt.rx * p.scale), Math.max(3, wt.ry * p.scale), 0, 0, Math.PI * 2);
-          oCtx.fill();
-        }
-
-        const pg = toMap(hole.green.x, hole.green.y);
-        oCtx.fillStyle = isActive ? '#22c55e' : '#15803d';
-        oCtx.beginPath();
-        oCtx.arc(pg.x, pg.y, Math.max(3, hole.green.r * pg.scale), 0, Math.PI * 2);
-        oCtx.fill();
-
-        const pp = toMap(hole.pin.x, hole.pin.y);
-        oCtx.fillStyle = '#ef4444';
-        oCtx.beginPath();
-        oCtx.arc(pp.x, pp.y, 2.5, 0, Math.PI * 2);
-        oCtx.fill();
-
-        oCtx.fillStyle = isActive ? '#facc15' : 'rgba(255, 255, 255, 0.85)';
-        oCtx.font = `bold ${Math.max(8, Math.round(11 * pg.scale))}px sans-serif`;
-        oCtx.textAlign = 'center';
-        oCtx.fillText(`${hole.num}`, pp.x, pp.y - 6);
-      });
-
-      const pch = toMap(1087, 740);
-      oCtx.fillStyle = '#475569';
-      oCtx.fillRect(pch.x - 12, pch.y - 18, 24, 36);
-      oCtx.fillStyle = '#ffffff';
-      oCtx.font = 'bold 7px sans-serif';
-      oCtx.fillText('CLUB', pch.x, pch.y - 2);
-
-      const pdr = toMap(1022, 922);
-      oCtx.fillStyle = '#047857';
-      oCtx.fillRect(pdr.x - 14, pdr.y - 8, 28, 16);
-      oCtx.fillStyle = '#6ee7b7';
-      oCtx.font = '6px sans-serif';
-      oCtx.fillText('RANGE', pdr.x, pdr.y + 3);
-
-      const curP = getActivePlayer();
-      const pBall = toMap(curP.ball.x, curP.ball.y);
-      oCtx.fillStyle = '#ffffff';
-      oCtx.beginPath();
-      oCtx.arc(pBall.x, pBall.y, 5, 0, Math.PI * 2);
-      oCtx.fill();
-      oCtx.strokeStyle = '#38bdf8';
-      oCtx.lineWidth = 2;
-      oCtx.stroke();
-    }
-
+    /* Keyboard Controls */
     window.addEventListener('keydown', (e) => {
       const p = getActivePlayer();
       if (e.code === 'Space') {
@@ -2591,45 +3433,16 @@
       }
       if (e.code === 'Tab') {
         e.preventDefault();
+        updateScorecardTable();
         scorecardModal.classList.toggle('hidden');
       }
       if (e.code === 'KeyM') {
-        toggleCourseMap();
+        e.preventDefault();
+        openCourseOverviewModal();
       }
       if (e.code === 'KeyC') {
         toggleCamera();
       }
-    });
-
-    document.getElementById('btnPracticeMenu').addEventListener('click', () => {
-      practiceModal.classList.remove('hidden');
-    });
-    document.getElementById('btnOpenPracticeFromWelcome').addEventListener('click', () => {
-      welcomeModal.classList.add('hidden');
-      audio.init();
-      practiceModal.classList.remove('hidden');
-    });
-    document.getElementById('btnClosePracticeModal').addEventListener('click', () => {
-      practiceModal.classList.add('hidden');
-    });
-    document.getElementById('btnReturnToCourse').addEventListener('click', () => {
-      practiceModal.classList.add('hidden');
-      initHole(state.currentHoleIdx);
-    });
-    document.getElementById('btnSelectRange').addEventListener('click', () => {
-      practiceModal.classList.add('hidden');
-      audio.init();
-      initPracticeMode('range');
-    });
-    document.getElementById('btnSelectPutting').addEventListener('click', () => {
-      practiceModal.classList.add('hidden');
-      audio.init();
-      initPracticeMode('putting');
-    });
-
-    document.getElementById('btnCourseMap').addEventListener('click', toggleCourseMap);
-    document.getElementById('btnCloseCourseMap').addEventListener('click', () => {
-      courseMapModal.classList.add('hidden');
     });
 
     document.getElementById('swingMeterBox').addEventListener('pointerdown', (e) => {
@@ -2666,6 +3479,95 @@
     }
     document.getElementById('btnToggleCam').addEventListener('click', toggleCamera);
 
+    function openCourseOverviewModal() {
+      courseMapModal.classList.remove('hidden');
+      renderFullCourseOverview();
+    }
+    document.getElementById('btnCourseMap').addEventListener('click', openCourseOverviewModal);
+    document.getElementById('btnCloseCourseMap').addEventListener('click', () => {
+      courseMapModal.classList.add('hidden');
+    });
+
+    function renderFullCourseOverview() {
+      if (!overviewCanvas || !overviewCanvas.parentElement) return;
+      overviewCanvas.width = overviewCanvas.parentElement.clientWidth;
+      overviewCanvas.height = overviewCanvas.parentElement.clientHeight || 360;
+
+      const oCtx = overviewCtx;
+      const w = overviewCanvas.width;
+      const h = overviewCanvas.height;
+      const holes = getCourseHoles();
+
+      oCtx.fillStyle = '#0a2314';
+      oCtx.fillRect(0, 0, w, h);
+
+      const minX = 20, maxX = 1050;
+      const minY = 60, maxY = 1000;
+      const pad = 20;
+      const scaleX = (w - pad * 2) / (maxX - minX);
+      const scaleY = (h - pad * 2) / (maxY - minY);
+      const scale = Math.min(scaleX, scaleY);
+      const offX = (w - (maxX - minX) * scale) / 2;
+      const offY = (h - (maxY - minY) * scale) / 2;
+
+      function toMap(wx, wy) {
+        return {
+          x: offX + (wx - minX) * scale,
+          y: offY + (wy - minY) * scale
+        };
+      }
+
+      holes.forEach((hole, idx) => {
+        const isCurrent = (idx === state.currentHoleIdx) && (state.playMode === 'course');
+        oCtx.save();
+        oCtx.lineCap = 'round';
+        oCtx.lineJoin = 'round';
+
+        for (const seg of hole.fairwaySegments) {
+          const p1 = toMap(seg.x1, seg.y1);
+          const p2 = toMap(seg.x2, seg.y2);
+          oCtx.strokeStyle = isCurrent ? '#4ade80' : '#2b683a';
+          oCtx.lineWidth = Math.max(3, seg.width * scale * 0.8);
+          oCtx.beginPath();
+          oCtx.moveTo(p1.x, p1.y);
+          oCtx.lineTo(p2.x, p2.y);
+          oCtx.stroke();
+        }
+
+        for (const wt of hole.water) {
+          const p = toMap(wt.x, wt.y);
+          oCtx.fillStyle = '#0284c7';
+          oCtx.beginPath();
+          oCtx.ellipse(p.x, p.y, Math.max(2, wt.rx * scale), Math.max(2, wt.ry * scale), 0, 0, Math.PI * 2);
+          oCtx.fill();
+        }
+
+        if (hole.green) {
+          const pg = toMap(hole.green.x, hole.green.y);
+          oCtx.fillStyle = isCurrent ? '#facc15' : '#86efac';
+          oCtx.beginPath();
+          oCtx.arc(pg.x, pg.y, Math.max(3, hole.green.r * scale * 0.7), 0, Math.PI * 2);
+          oCtx.fill();
+
+          oCtx.fillStyle = '#ffffff';
+          oCtx.font = 'bold 9px sans-serif';
+          oCtx.textAlign = 'center';
+          oCtx.fillText(`${hole.num}`, pg.x, pg.y + 11);
+        }
+        oCtx.restore();
+      });
+
+      const p = getActivePlayer();
+      const pb = toMap(p.ball.x, p.ball.y);
+      oCtx.fillStyle = '#ffffff';
+      oCtx.beginPath();
+      oCtx.arc(pb.x, pb.y, 4.5, 0, Math.PI * 2);
+      oCtx.fill();
+      oCtx.strokeStyle = '#ef4444';
+      oCtx.lineWidth = 1.5;
+      oCtx.stroke();
+    }
+
     document.getElementById('btnScorecard').addEventListener('click', () => {
       updateScorecardTable();
       scorecardModal.classList.remove('hidden');
@@ -2680,7 +3582,8 @@
 
     document.getElementById('btnNextHole').addEventListener('click', () => {
       holeCompleteModal.classList.add('hidden');
-      if (state.currentHoleIdx < 17) {
+      const holes = getCourseHoles();
+      if (state.currentHoleIdx < holes.length - 1) {
         initHole(state.currentHoleIdx + 1);
       } else {
         showFinalResultsScreen();
@@ -2688,6 +3591,9 @@
     });
 
     function showFinalResultsScreen() {
+      const holes = getCourseHoles();
+      const coursePar = holes.reduce((sum, h) => sum + h.par, 0);
+
       if (state.gameMode === '1P') {
         document.getElementById('finalP1Container').classList.remove('hidden');
         document.getElementById('final2PContainer').classList.add('hidden');
@@ -2698,17 +3604,17 @@
         let pars = 0;
         let bogeys = 0;
 
-        for (let i = 0; i < 18; i++) {
-          const sc = state.players[0].scores[i] || COURSE_HOLES[i].par;
+        for (let i = 0; i < holes.length; i++) {
+          const sc = state.players[0].scores[i] || holes[i].par;
           totalStrokes += sc;
-          const diff = sc - COURSE_HOLES[i].par;
+          const diff = sc - holes[i].par;
           if (diff <= -2) eagles++;
           else if (diff === -1) birdies++;
           else if (diff === 0) pars++;
           else bogeys++;
         }
 
-        const toPar = totalStrokes - 72;
+        const toPar = totalStrokes - coursePar;
         document.getElementById('finalTotalScore').innerText = totalStrokes;
         document.getElementById('finalToPar').innerText = `${formatToPar(toPar)} (${Math.abs(toPar)} ${toPar <= 0 ? 'Under' : 'Over'} Par)`;
         document.getElementById('finalEagles').innerText = eagles;
@@ -2717,10 +3623,10 @@
         document.getElementById('finalBogeys').innerText = bogeys;
 
         let title = "Weekend Hacker";
-        if (toPar <= -6) title = "Grand Tour Legend 🌟";
-        else if (toPar <= -2) title = "Scratch Golfer 🥇";
+        if (toPar <= -4) title = "Course Architect Champion 🌟";
+        else if (toPar <= 0) title = "Scratch Golfer 🥇";
         else if (toPar <= 3) title = "Single Digit Handicap 🥈";
-        else if (toPar <= 10) title = "Club Champion Contender 🥉";
+        else if (toPar <= 8) title = "Club Champion Contender 🥉";
         document.getElementById('finalRatingBadge').innerText = title;
       } else {
         document.getElementById('finalP1Container').classList.add('hidden');
@@ -2728,13 +3634,13 @@
 
         let totP1 = 0;
         let totP2 = 0;
-        for (let i = 0; i < 18; i++) {
-          totP1 += (state.players[0].scores[i] || COURSE_HOLES[i].par);
-          totP2 += (state.players[1].scores[i] || COURSE_HOLES[i].par);
+        for (let i = 0; i < holes.length; i++) {
+          totP1 += (state.players[0].scores[i] || holes[i].par);
+          totP2 += (state.players[1].scores[i] || holes[i].par);
         }
 
-        const toPar1 = totP1 - 72;
-        const toPar2 = totP2 - 72;
+        const toPar1 = totP1 - coursePar;
+        const toPar2 = totP2 - coursePar;
 
         document.getElementById('finalP1Strokes').innerText = totP1;
         document.getElementById('finalP1ToPar').innerText = formatToPar(toPar1);
@@ -2742,8 +3648,8 @@
         document.getElementById('finalP2ToPar').innerText = formatToPar(toPar2);
 
         let banner = "Match Tied!";
-        if (totP1 < totP2) banner = "Player 1 Wins the Championship! 🥇";
-        else if (totP2 < totP1) banner = "Player 2 Wins the Championship! 🥇";
+        if (totP1 < totP2) banner = "Player 1 Wins the Match! 🥇";
+        else if (totP2 < totP1) banner = "Player 2 Wins the Match! 🥇";
         document.getElementById('finalWinnerBanner').innerText = banner;
         document.getElementById('finalRatingBadge').innerText = "Tour Champions";
       }
@@ -2753,8 +3659,9 @@
 
     document.getElementById('btnRestartRound').addEventListener('click', () => {
       finalResultsModal.classList.add('hidden');
-      state.players[0].scores = new Array(18).fill(null);
-      state.players[1].scores = new Array(18).fill(null);
+      const holes = getCourseHoles();
+      state.players[0].scores = new Array(holes.length).fill(null);
+      state.players[1].scores = new Array(holes.length).fill(null);
       welcomeModal.classList.remove('hidden');
     });
 
@@ -2770,6 +3677,7 @@
       const diffRadio = document.querySelector('input[name="difficulty"]:checked');
       if (diffRadio) setDifficulty(diffRadio.value);
 
+      state.courseType = 'standard';
       state.players[0].scores = new Array(18).fill(null);
       state.players[1].scores = new Array(18).fill(null);
 
@@ -2777,6 +3685,39 @@
       audio.init();
       initHole(0);
     });
+
+    function openPracticeModal() {
+      welcomeModal.classList.add('hidden');
+      if (practiceModal) practiceModal.classList.remove('hidden');
+    }
+    const btnPracticeMenu = document.getElementById('btnPracticeMenu');
+    if (btnPracticeMenu) btnPracticeMenu.addEventListener('click', openPracticeModal);
+
+    const btnOpenPracticeFromWelcome = document.getElementById('btnOpenPracticeFromWelcome');
+    if (btnOpenPracticeFromWelcome) btnOpenPracticeFromWelcome.addEventListener('click', openPracticeModal);
+
+    const btnClosePracticeModal = document.getElementById('btnClosePracticeModal');
+    if (btnClosePracticeModal) {
+      btnClosePracticeModal.addEventListener('click', () => {
+        if (practiceModal) practiceModal.classList.add('hidden');
+      });
+    }
+
+    const btnSelectRange = document.getElementById('btnSelectRange');
+    if (btnSelectRange) {
+      btnSelectRange.addEventListener('click', () => {
+        audio.init();
+        initPracticeMode('range');
+      });
+    }
+
+    const btnSelectPuttingGreen = document.getElementById('btnSelectPuttingGreen');
+    if (btnSelectPuttingGreen) {
+      btnSelectPuttingGreen.addEventListener('click', () => {
+        audio.init();
+        initPracticeMode('putting');
+      });
+    }
 
     let isAimDragging = false;
     canvas.addEventListener('pointerdown', (e) => {
@@ -2804,7 +3745,9 @@
       updateUI();
     }
 
+    /* Startup Engine */
     resizeCanvases();
+    initBuilderCourse(18);
     randomizeSweetSpot();
     initHole(0);
 
